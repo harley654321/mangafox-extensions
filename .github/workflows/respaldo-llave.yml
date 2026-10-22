@@ -1,0 +1,45 @@
+# RESPALDO CIFRADO DE LA LLAVE DE FIRMA (bajo demanda, manual).
+# Entrada: nada. Salida: un ARTEFACTO con el PEM cifrado AES-256
+# (PBKDF2 600k iteraciones) que solo se abre con RESPALDO_PASSWORD
+# (secret temporal, se borra tras cada corrida). El artefacto
+# caduca en 1 dia. Jamas se sube el PEM en claro a ningun lado y
+# GitHub enmascara el secret en todos los logs.
+# Uso: Actions -> respaldo-llave -> Run workflow -> descargar el
+# artefacto -> openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000.
+name: respaldo-llave
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Cifrar la llave con AES-256
+        env:
+          MFX_LLAVE_PRIVADA: ${{ secrets.MFX_LLAVE_PRIVADA }}
+          RESPALDO_PASSWORD: ${{ secrets.RESPALDO_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$RESPALDO_PASSWORD" ]; then
+            echo "ERROR: no hay RESPALDO_PASSWORD: crea el secret o borra el artefacto anterior." >&2
+            exit 1
+          fi
+          printf '%s' "$MFX_LLAVE_PRIVADA" > llave-tmp.pem
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in llave-tmp.pem -out llave-privada.pem.enc \
+            -pass pass:"$RESPALDO_PASSWORD"
+          rm llave-tmp.pem
+          # Jamas se imprime el PEM ni el password; solo el tamano cifrado.
+          wc -c llave-privada.pem.enc
+
+      - name: Publicar artefacto (caduca en 1 dia)
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: respaldo-llave-mfx
+          path: llave-privada.pem.enc
+          retention-days: 1
+          if-no-files-found: error

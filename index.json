@@ -46,6 +46,94 @@
             "fileHashMfx": "205a1a775646377ff443881a81cf95201d578ad2db87bd08ea7b797dd411341f",
             "firmaMfx": "MEQCIAc+4j+D1jMJ5JQW9rc2b1KdjwJxhdtpeenCGZ9zwhV8AiBIJ2CfbLLVEs2aMdqz4V9YTertoEx7an3VAGyh2JlhRA==",
             "versionMfx": 1
+        },
+        {
+            "id": "olympusscanlation",
+            "name": "Olympus Scanlation",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Olympus Scanlation en espanol: manhwa y manhua con API propia (885 comics).",
+            "manifest": "mfx/olympusscanlation/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=olympusxyz.com&sz=128",
+            "baseUrl": "https://olympusxyz.com",
+            "theme": "olympus",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 1
+            },
+            "recoveryUrl": "https://olympus.pages.dev",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/olympusscanlation.mfx",
+            "fileHashMfx": "",
+            "firmaMfx": "",
+            "versionMfx": 0
+        },
+        {
+            "id": "ikigaimangas",
+            "name": "Ikigai Mangas",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Ikigai Mangas en espanol: manga, manhwa, manhua y novelas (dominio camuflado con redirect).",
+            "manifest": "mfx/ikigaimangas/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=visualikigai.com&sz=128",
+            "baseUrl": "https://visualikigai.com",
+            "theme": "ikigai",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://ikigaimangas.com",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/ikigaimangas.mfx",
+            "fileHashMfx": "",
+            "firmaMfx": "",
+            "versionMfx": 0
+        },
+        {
+            "id": "mangacrab",
+            "name": "MangaCrab",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "MangaCrab en espanol: manga y manhua (1162 series, cap VIP protegido honesto).",
+            "manifest": "mfx/mangacrab/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=es.mangacrab.org&sz=128",
+            "baseUrl": "https://es.mangacrab.org",
+            "theme": "mangacrab",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://mangacrab.org",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mangacrab.mfx",
+            "fileHashMfx": "",
+            "firmaMfx": "",
+            "versionMfx": 0
+        },
+        {
+            "id": "manhwaweb",
+            "name": "ManhwaWeb",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "ManhwaWeb en espanol: manhwa y manga comunitario (lo mas leido semanal y total).",
+            "manifest": "mfx/manhwaweb/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=manhwaweb.com&sz=128",
+            "baseUrl": "https://api.manhwaweb.com",
+            "theme": "manhwaweb",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://manhwaweb.com",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/manhwaweb.mfx",
+            "fileHashMfx": "",
+            "firmaMfx": "",
+            "versionMfx": 0
         }
     ]
 }

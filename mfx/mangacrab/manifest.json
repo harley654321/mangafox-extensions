@@ -1,0 +1,7 @@
+{
+  "id": "mangacrab",
+  "name": "MangaCrab",
+  "version": 1,
+  "apiVersion": 1,
+  "pluginClassName": "com.harley.mangafox.mfx.mangacrab.PluginMangaCrab"
+}

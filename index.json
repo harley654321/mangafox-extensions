@@ -1,0 +1,51 @@
+{
+    "name": "Repo de extensiones MangaFox",
+    "apiVersion": 1,
+    "description": "Fabrica v1 de extensiones .mfx (firmadas ECDSA P-256) para la app MangaFox. Cada CI re-compila, re-firma y publica index.json + builds/.",
+    "extensions": [
+        {
+            "id": "mhscans",
+            "name": "MHScans",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Scanlation en espanol: manga, manhwa y manhua.",
+            "manifest": "mfx/mhscans/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=mhscans.com&sz=128",
+            "baseUrl": "https://mhscans.com",
+            "theme": "madara",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 3
+            },
+            "recoveryUrl": "https://mhscans.com",
+            "urlMfx": "",
+            "fileHashMfx": "",
+            "firmaMfx": "",
+            "versionMfx": 1
+        },
+        {
+            "id": "jeazscans",
+            "name": "Jeaz Scans",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Jeaz Scans en espanol: manga, manhwa y manhua (LectorHub).",
+            "manifest": "mfx/jeazscans/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=lectorhub.j5z.xyz&sz=128",
+            "baseUrl": "https://lectorhub.j5z.xyz",
+            "theme": "jeaz",
+            "rateLimit": {
+                "requests": 2,
+                "seconds": 1
+            },
+            "recoveryUrl": "https://jeazscans.com",
+            "urlMfx": "",
+            "fileHashMfx": "",
+            "firmaMfx": "",
+            "versionMfx": 1
+        }
+    ]
+}

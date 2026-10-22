@@ -64,3 +64,34 @@ allprojects {
     extra["sdkAndroid"] = sdkAndroid
     extra["androidJar"] = androidJarResuelto
 }
+
+// ============================================================
+// TAREA RAIZ: construirTodas. Auto-descubre TODOS los modulos
+// :mfx-* que settings.gradle.kts incluye (toda carpeta
+// mfx/<id>/ con build.gradle.kts) y corre su construirMfx.
+// El CI llama SOLO a esta tarea: agregar una extension nueva
+// JAMAS obliga a editar el workflow. Si un modulo no tiene
+// construirMfx, la tarea falla con el nombre exacto del modulo.
+// ============================================================
+val modulosMfx = subprojects.filter { it.name.startsWith("mfx-") }
+
+tasks.register("construirTodas") {
+    group = "mfx"
+    description = "Compila, firma y auto-verifica TODAS las extensiones .mfx del repo"
+    doFirst {
+        if (modulosMfx.isEmpty()) {
+            throw GradleException(
+                "No hay modulos mfx-*: cada extension vive en mfx/<id>/ " +
+                    "con build.gradle.kts + manifest.json (ver CONTRATO-EXTENSIONES.md)."
+            )
+        }
+        logger.lifecycle(
+            "construirTodas: " + modulosMfx.joinToString(", ") {
+                it.name.removePrefix("mfx-")
+            }
+        )
+    }
+    // Rutas de tarea (resolucion perezosa): la raiz se evalua
+    // antes que los modulos, y los nombres se resuelven al ejecutar.
+    dependsOn(modulosMfx.map { "${it.path}:construirMfx" })
+}

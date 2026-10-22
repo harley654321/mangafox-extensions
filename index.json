@@ -21,8 +21,8 @@
             },
             "recoveryUrl": "https://mhscans.com",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mhscans.mfx",
-            "fileHashMfx": "3ab1fe41e068af956ea4f23b69079a73e4a2b28e238f7f9bf8c944a598aefb70",
-            "firmaMfx": "MEUCIBt/99YuIkS/7Bhl8MklftLhCcJ/1ulwsFTtjVX5yF6yAiEAuwXfE0ZdZVx2G9jIJg+9Ri9g5Z5JCX8RGAEeOBvRwpQ=",
+            "fileHashMfx": "0b25bebc6adbde61439c2bcc2f5b73289a81473ba6f1c33a4ff1204825ab3b8e",
+            "firmaMfx": "MEQCIAtvHPW8ktqZi6p47GlNzeJDLLPVYbvooI0SkONmywosAiBPnLXGQ0Aa3wNlrJ0cT6JyG5KSgYClMmK1QJsDugu+AQ==",
             "versionMfx": 1
         },
         {
@@ -43,8 +43,8 @@
             },
             "recoveryUrl": "https://jeazscans.com",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/jeazscans.mfx",
-            "fileHashMfx": "26958a276f426d0a275d4fdddaacc6f2d8c8f682866ace15d908686ca863f870",
-            "firmaMfx": "MEUCIQDbn53dwgNECNpUF121ZxgxOhoUPRR/I5gq3qG7w7p+SgIgGQz7WB5ghCWYCIgn+8WB6r3l7vDdi3NSpZXLNnndfRs=",
+            "fileHashMfx": "3e18c7e415320b1435088dd29b80ee5f76cdf1bd16c55c16d7a3482aecef3fdc",
+            "firmaMfx": "MEUCIQCyOU7FpYDNhEex7yi5eKT7qCWDHYPyDmVxb+p5dJGJfAIgVNGuI0jAxhioVqZaYCPdXMgm2SEiorGbzvHDCJfWkmA=",
             "versionMfx": 1
         }
     ]

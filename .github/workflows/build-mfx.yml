@@ -102,4 +102,4 @@ jobs:
           git checkout -q -b builds
           git add mfx
           git commit -q -m "build mfx: firmados y verificados (mhscans + jeazscans)"
-          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/harley654321/mangafox-extensions.git" builds
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" builds

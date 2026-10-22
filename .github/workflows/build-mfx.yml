@@ -2,16 +2,23 @@
 # En cada push a main que toque una extension, la superficie api/ o
 # el build, este workflow:
 #   1. Compila con el Kotlin de la APK (2.2.10, wrapper Gradle 8.4).
-#   2. Ensambla el .mfx (jar -> d8 -> zip) con la tarea Gradle
-#      construirMfx (100% JDK: sin openssl ni python).
+#   2. Ensambla TODAS las extensiones (auto-descubiertas por
+#      settings.gradle.kts): jar -> d8 -> zip con la tarea raiz
+#      construirTodas (100% JDK: sin openssl en el build).
 #   3. Firma ECDSA P-256 con la llave privada del secret
-#      MFX_LLAVE_PRIVADA y AUTO-VERIFICA contra firmas/llave-publica.pem
-#      (la clave pineada en la APK) antes de tocar nada.
+#      MFX_LLAVE_PRIVADA y AUTO-VERIFICA cada .mfx contra
+#      firmas/llave-publica.pem (la clave pineada en la APK)
+#      antes de tocar nada.
 #   4. Publica: index.json actualizado en main + .mfx en la rama
 #      builds (commit vigente reemplazado).
+# AGREGAR UNA EXTENSION NUEVA no requiere editar este archivo:
+# mfx/<id>/ + entrada en index.json y listo (ver CONTRATO).
 # Committers del CI: identidad oficial github-actions[bot]. Antes se usaba
 # "ci@users.noreply.github.com" y GitHub lo atribuia al usuario real "ci"
 # (Catalin), apareciendo como contribuidor ajeno en el repo (log 21-oct).
+# Hardening: actions pineadas por SHA (cadena de suministro),
+# permisos minimos del GITHUB_TOKEN (solo contents:write) y
+# timeout para colgados.
 name: build-mfx
 
 on:
@@ -29,14 +36,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
       - name: Checkout extensiones
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5355ba6c12 # v4.7.0
         with:
           distribution: temurin
           java-version: "17"
@@ -68,10 +76,10 @@ jobs:
             openssl pkcs8 -topk8 -nocrypt -in llave-raw.pem -out llave-mfx.pem
           fi
           chmod +x gradlew
-          ./gradlew --no-daemon :mfx-mhscans:construirMfx \
-            -PsdkAndroid="$ANDROID_HOME" \
-            -PllaveMfx="$PWD/llave-mfx.pem"
-          ./gradlew --no-daemon :mfx-jeazscans:construirMfx \
+          # UNA sola llamada: construirTodas auto-descubre todos los
+          # mfx/<id>/ y corre su construirMfx (compilar + firmar +
+          # auto-verificar contra firmas/llave-publica.pem + index).
+          ./gradlew --no-daemon construirTodas \
             -PsdkAndroid="$ANDROID_HOME" \
             -PllaveMfx="$PWD/llave-mfx.pem"
           rm -f llave-raw.pem llave-mfx.pem
@@ -83,8 +91,9 @@ jobs:
           if git diff --quiet index.json; then
             echo "index sin cambios"
           else
+            PUBLICADAS=$(ls mfx/*/build/mfx/*.mfx 2>/dev/null | sed 's|.*/\([^.]*\)\.mfx|\1|' | tr '\n' ' ')
             git add index.json
-            git commit -m "build(mfx): mhscans publicado por CI [skip ci]"
+            git commit -m "build(mfx): publicados por CI [skip ci]: ${PUBLICADAS}"
             git push
           fi
 
@@ -93,13 +102,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p pub/mfx
-          cp mfx/mhscans/build/mfx/mhscans.mfx pub/mfx/
-          cp mfx/jeazscans/build/mfx/jeazscans.mfx pub/mfx/
+          # Glob: todos los .mfx construidos, sin listar modulos.
+          cp mfx/*/build/mfx/*.mfx pub/mfx/
           cd pub
           git init -q
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -q -b builds
           git add mfx
-          git commit -q -m "build mfx: firmados y verificados (mhscans + jeazscans)"
+          git commit -q -m "build mfx: firmados y verificados ($(ls mfx/ | tr '\n' ' '))"
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" builds

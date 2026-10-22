@@ -18,40 +18,51 @@ import kotlinx.coroutines.withContext
 import kotlin.text.RegexOption.DOT_MATCHES_ALL
 
 /**
- * EXTENSION MFX ikigaimangas — Ikigai Mangas (visualikigai).
+ * EXTENSION MFX ikigaimangas: Ikigai Mangas (visualikigai).
  *
  * HTML Qwik autopsiado en vivo 21-oct-2026 (evidencia keiyoushi
- * + navegacion real del dueno: pide verificar dominio). JUEGO
+ * + navegacion real del dueno + LOG REAL del celular). JUEGO
  * DE DOMINIOS documentado: el landing ikigaimangas.com (tras
  * Cloudflare) anuncia en un script qwik (/build/q-CA3XLgLw.js)
- * el dominio del boton "Ir al sitio": visualikigai.com, que a
- * su vez REDIRIGE al dominio camuflado vigente (hoy
- * visualikigai.cmpunjabrashancard.pk). El HttpURLConnection de
- * la apk SIGUE redirects: baseUrl visualikigai.com aterriza
- * siempre en el camuflado vigente sin codificarlo.
+ * el dominio del boton "Ir al sitio": visualikigai.com, que
+ * REDIRIGE al dominio camuflado vigente (hoy
+ * visualikigai.cmpunjabrashancard.pk). El HttpURLConnection
+ * de la apk SIGUE redirects: baseUrl visualikigai.com
+ * aterriza siempre en el camuflado vigente. CONFIRMADO EN LOG
+ * REAL (21-oct 22:29): el celular recibio el sitio real
+ * (clasificacion 457 KB, archivo 218 KB, home 400 KB).
  *
+ * AUTOOPSIA DEL BUG v1 (log real: "0 obras (FIN)" con HTML
+ * real recibido). TRES formas de tarjeta DISTINTAS por
+ * seccion (evidencia keiyoushi DOM) y el HTML qwik real
+ * escribe href ANTES que class: el parser v1 exigia class
+ * antes de href y una sola forma para todo = 0 en todas.
+ * El nucleo de parsing vive en HtmlIkigai.kt (atributos en
+ * cualquier orden, clases por token exacto).
  *   RECIENTES : /?pagina=N -> section[aria-labelledby=
- *               new-chapters-heading] (tarjetas a.card,
- *               paginacion nav[aria-label=pagination])
+ *               new-chapters-heading] tarjetas a.card con
+ *               titulo en .card-body .card-title
  *   POPULARES : /series/?tipos[]=comic&ordenar=view_count&
- *               direccion=desc&pagina=N (archivo ordenado por
- *               vistas: lista real DISTINTA)
- *   RANKING   : /clasificacion/ (la clasificacion oficial del
- *               sitio, pagina UNICA: pag 2+ = vacio honesto)
+ *               direccion=desc&pagina=N -> section[aria-
+ *               labelledby=archive-heading] tarjetas a.card
+ *               con titulo en h3 (NO card-title)
+ *   RANKING   : /clasificacion/ (pagina UNICA) -> tarjetas
+ *               div.card con enlace en a.btn y titulo en
+ *               .card-body .card-title
  *   DIRECTORIO: /series/?tipos[]=comic[&generos[]=id]&pagina=N
- *   FICHA     : /series/<slug>/ (main .card-body, capitulos en
- *               section.card > ul.grid a.card con paginacion
- *               ?pagina=N: v1 primera pagina + incompletos)
- *   LECTOR     : la URL del capitulo (abs:href) con los <img>
- *               del interior de <section> (orden del DOM)
- *   BUSQUEDA  : NO SOPORTADA honesto: el buscador del sitio es
- *               un endpoint Qwik que exige qfunc generado por
- *               WebView (keiyoushi lo resuelve asi); la api
+ *               (misma forma que POPULARES: titulo h3)
+ *   FICHA     : /series/<slug>/ (main .card-body, capitulos
+ *               en section.card > ul.grid a.card con
+ *               paginacion ?pagina=N: v1 primera pagina +
+ *               incompletos)
+ *   LECTOR     : URL del capitulo, <section div > img> en
+ *               orden del DOM (evidencia keiyoushi 291)
+ *   BUSQUEDA  : NO SOPORTADA honesto: el buscador exige qfunc
+ *               generado por WebView + POST qwik-json; la api
  *               congelada no tiene WebView. buscar() devuelve
  *               vacio y el directorio queda como explorador.
  *
- * Rate limit 1 peticion / 2 s (evidencia keiyoushi): el mismo
- * ritmo que pide el sitio a los lectores rapidos.
+ * Rate limit 1 peticion / 2 s (evidencia keiyoushi).
  */
 class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
 
@@ -80,11 +91,7 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
                 val html = web.getHtml("/?pagina=" + pagina)
                     ?: return emptyList()
                 withContext(Dispatchers.IO) {
-                    parsearTarjetas(
-                        seccionRecentes(html),
-                        "section[aria-labelledby=new-chapters-heading] " +
-                            "ul.grid:last-of-type"
-                    )
+                    parsearRecientes(rebanar(html, "new-chapters-heading"))
                 }
             }
             Seccion.POPULARES -> {
@@ -93,9 +100,7 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
                         "&direccion=desc&pagina=" + pagina
                 ) ?: return emptyList()
                 withContext(Dispatchers.IO) {
-                    parsearTarjetas(
-                        seccionArchivo(html), "section[archive]"
-                    )
+                    parsearArchivo(rebanar(html, "archive-heading"))
                 }
             }
             Seccion.RANKING -> {
@@ -108,7 +113,7 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
                 }
                 val html = web.getHtml("/clasificacion/") ?: return emptyList()
                 withContext(Dispatchers.IO) {
-                    parsearTarjetas(seccionClasificacion(html), "clasificacion")
+                    parsearClasificacion(html)
                 }
             }
         }.also {
@@ -120,63 +125,98 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
         }
     }
 
-    /** Recorta el HTML a la seccion que importa antes de
-     *  parsear tarjetas: cero contaminacion cruzada entre
-     *  secciones de la misma pagina. */
-    private fun seccionRecentes(html: String): String {
-        val i = html.indexOf("new-chapters-heading")
-        if (i < 0) return ""
-        val fin = html.indexOf("pagination", i)
-        return if (fin > i) html.substring(i, fin + 2000) else html.substring(i)
-    }
-
-    private fun seccionArchivo(html: String): String {
-        val i = html.indexOf("archive-heading")
-        if (i < 0) return ""
-        val fin = html.indexOf("pagination", i)
-        return if (fin > i) html.substring(i, fin + 2000) else html.substring(i)
-    }
-
-    private fun seccionClasificacion(html: String): String = html
-
-    /** Tarjetas a.card: <a class="card" href="...series/<slug>/">
-     *  con img y .card-body .card-title (evidencia keiyoushi
-     *  sobre el mismo DOM vigente). */
-    private fun parsearTarjetas(
-        fragmento: String,
-        deDonde: String
-    ): List<ObraHome> {
-        if (fragmento.isEmpty()) {
-            MangaFoxLog.w(ETIQUETA, "seccion ausente: " + deDonde)
-            return emptyList()
+    /** Recorta el HTML a la seccion exacta: desde el ancla
+     *  (id/aria de la <section>) hasta el </section> que le
+     *  sigue. Cero contaminacion cruzada entre secciones. */
+    private fun rebanar(html: String, ancla: String): String {
+        val i = html.indexOf(ancla)
+        if (i < 0) {
+            MangaFoxLog.w(ETIQUETA, "seccion ausente: " + ancla)
+            return ""
         }
+        val fin = html.indexOf("</section>", i)
+        return if (fin > i) {
+            html.substring(i, minOf(fin, i + 60000))
+        } else {
+            html.substring(i, minOf(i + 12000, html.length))
+        }
+    }
+
+    // ----------------------------------------------- formas por seccion
+
+    /** RECIENTES: a.card, titulo .card-body .card-title. */
+    private fun parsearRecientes(fragmento: String): List<ObraHome> {
+        if (fragmento.isEmpty()) return emptyList()
+        return HtmlIkigai.tarjetasA(fragmento, "card")
+            .mapNotNull { (tag, cuerpo) ->
+                val href = HtmlIkigai.atributo(tag, "href")?.trim()
+                    ?: return@mapNotNull null
+                val slug = slugDe(href) ?: return@mapNotNull null
+                val titulo = HtmlIkigai.textoDeClase(cuerpo, "card-title")
+                    ?: return@mapNotNull null
+                ObraHome(
+                    id = "/series/" + slug + "/",
+                    titulo = titulo,
+                    portadaUrl = HtmlIkigai.primeraImagen(cuerpo),
+                    enlace = "/series/" + slug + "/"
+                )
+            }.distinctBy { it.id }
+    }
+
+    /** POPULARES/DIRECTORIO: a.card, titulo en h3 (NO
+     *  card-title: evidencia keiyoushi linea 163). */
+    private fun parsearArchivo(fragmento: String): List<ObraHome> {
+        if (fragmento.isEmpty()) return emptyList()
+        return HtmlIkigai.tarjetasA(fragmento, "card")
+            .mapNotNull { (tag, cuerpo) ->
+                val href = HtmlIkigai.atributo(tag, "href")?.trim()
+                    ?: return@mapNotNull null
+                val slug = slugDe(href) ?: return@mapNotNull null
+                val titulo =
+                    Regex("<h3\\b[^>]*>(.*?)</h3>", DOT_MATCHES_ALL)
+                        .find(cuerpo)?.groupValues?.get(1)
+                        ?.let { HtmlIkigai.limpiar(it) }
+                        ?.takeIf { it.length >= 2 } ?: return@mapNotNull null
+                ObraHome(
+                    id = "/series/" + slug + "/",
+                    titulo = titulo,
+                    portadaUrl = HtmlIkigai.primeraImagen(cuerpo),
+                    enlace = "/series/" + slug + "/"
+                )
+            }.distinctBy { it.id }
+    }
+
+    /** RANKING: div.card con enlace en a.btn y titulo en
+     *  .card-body .card-title (evidencia keiyoushi 95-99). */
+    private fun parsearClasificacion(html: String): List<ObraHome> {
         val res = mutableListOf<ObraHome>()
-        Regex("<a[^>]*class=\"[^\"]*card[^\"]*\"[^>]*href=\"([^\"]+)\"[^>]*>", DOT_MATCHES_ALL)
-            .findAll(fragmento).forEach { m ->
-                val href = m.groupValues[1].trim()
-                val slug = slugDe(href) ?: return@forEach
-                val enlace = "/series/" + slug + "/"
-                val titulo = Regex("card-title[^>]*>\\s*([^<]{2,120})<")
-                    .find(m.value)?.groupValues?.get(1)?.trim() ?: return@forEach
-                val portada = Regex("<img[^>]*src=\"([^\"]+)\"")
-                    .find(m.value)?.groupValues?.get(1)?.trim() ?: ""
-                if (res.none { it.id == enlace }) {
-                    res.add(ObraHome(enlace, titulo, portada, enlace = enlace))
-                }
-            }
+        HtmlIkigai.bloquesDiv(html, "card").forEach { bloque ->
+            val titulo = HtmlIkigai.textoDeClase(bloque, "card-title")
+                ?: return@forEach
+            val enlace = HtmlIkigai.tarjetasA(bloque, "btn").firstOrNull()
+                ?.let { (tag, _) -> HtmlIkigai.atributo(tag, "href")?.trim() }
+                ?: return@forEach
+            val slug = slugDe(enlace) ?: return@forEach
+            val obra = ObraHome(
+                id = "/series/" + slug + "/",
+                titulo = titulo,
+                portadaUrl = HtmlIkigai.primeraImagen(bloque),
+                enlace = "/series/" + slug + "/"
+            )
+            if (res.none { it.id == obra.id }) res.add(obra)
+        }
         return res
     }
 
-    private fun slugDe(href: String): String? {
-        val m = Regex("/series/([a-z0-9-]+)").find(href) ?: return null
-        return m.groupValues[1].takeIf { it.isNotEmpty() }
-    }
+    private fun slugDe(href: String): String? =
+        Regex("/series/([a-z0-9-]+)").find(href)
+            ?.groupValues?.get(1)?.takeIf { it.isNotEmpty() }
 
     // ------------------------------------------------------------ generos
 
     /** Lista congelada de evidencia keiyoushi: el form Qwik de
      *  /series/ pinta los generos por JS y no son scrapeables
-     *  confiables en HTML estatico. */
+     *  confiablemente en HTML estatico. */
     override suspend fun generos(): List<Genero> = GENEROS_IKIGAI
 
     // ------------------------------------------------------------ directorio
@@ -197,7 +237,7 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
         }
         val html = web.getHtml(ruta) ?: return emptyList()
         val res = withContext(Dispatchers.IO) {
-            parsearTarjetas(seccionArchivo(html), "archivo")
+            parsearArchivo(rebanar(html, "archive-heading"))
         }
         MangaFoxLog.d(
             ETIQUETA, "directorio pag=" + pagina +
@@ -209,8 +249,8 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
 
     // ------------------------------------------------------------ busqueda
 
-    /** Buscador qwik (qfunc por WebView): NO accesible desde
-     *  la api congelada. Estado honesto propio: vacio. */
+    /** Buscador qwik (qfunc por WebView + POST): NO accesible
+     *  desde la api congelada. Estado honesto propio: vacio. */
     override suspend fun buscar(texto: String, pagina: Int): List<ObraHome> {
         MangaFoxLog.w(
             ETIQUETA, "busqueda no soportada por la fuente " +
@@ -237,37 +277,66 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
             MangaFoxLog.w(ETIQUETA, "ficha sin <main>: " + obra.enlace)
             return null
         }
-        val titulo = Regex("card-title[^>]*>\\s*([^<]{2,150})<")
-            .find(main)?.groupValues?.get(1)?.trim() ?: obra.titulo
-        val portada = Regex("<article[^>]*class=\"[^\"]*card[^\"]*\"[^>]*>.*?<img[^>]*src=\"([^\"]+)\"", DOT_MATCHES_ALL)
-            .find(main)?.groupValues?.get(1)?.trim() ?: obra.portadaUrl
-        val sinopsis = Regex("card-body[^>]*>\\s*<p[^>]*>(.*?)</p>", DOT_MATCHES_ALL)
-            .find(main)?.groupValues?.get(1)?.let { limpiar(it) }.orEmpty()
-        val generos = mutableListOf<String>()
-        Regex("[?&]generos\\[\\]=\\d+[^>]*>\\s*([^<]{2,40})<")
-            .findAll(main).forEach {
-                val g = it.groupValues[1].trim()
-                if (g.isNotEmpty() && !generos.contains(g)) generos.add(g)
-            }
-        val estado = Regex("[?&]estados\\[\\]=\\d+[^>]*>\\s*([^<]{2,40})<")
-            .find(main)?.groupValues?.get(1)?.trim()?.ifBlank { null }
-        val (capitulos, incompletos) = extraerCapitulos(html)
-        val detalle = ObraDetalle(
-            id = obra.enlace,
-            titulo = titulo,
-            portadaUrl = portada,
-            sinopsis = sinopsis,
-            estado = estado,
-            generos = generos,
-            capitulos = capitulos,
-            capitulosIncompletos = incompletos
-        )
+        val detalle = withContext(Dispatchers.IO) {
+            val (capitulos, incompletos) = extraerCapitulos(html)
+            ObraDetalle(
+                id = obra.enlace,
+                titulo = HtmlIkigai.textoDeClase(main, "card-title")
+                    ?: obra.titulo,
+                portadaUrl = bloqueArticleCard(main)
+                    ?.let { HtmlIkigai.primeraImagen(it) } ?: obra.portadaUrl,
+                sinopsis = primerParrafoDeClase(main, "card-body"),
+                estado = HtmlIkigai.enlacesConTexto(main, "estados[]=")
+                    .firstOrNull(),
+                generos = HtmlIkigai.enlacesConTexto(main, "generos[]="),
+                capitulos = capitulos,
+                capitulosIncompletos = incompletos
+            )
+        }
         MangaFoxLog.d(
-            ETIQUETA, "ficha '" + detalle.titulo + "': " + capitulos.size +
-                " caps (" + (System.currentTimeMillis() - t0) + " ms)" +
-                (if (incompletos) " [incompletos]" else "")
+            ETIQUETA, "ficha '" + detalle.titulo + "': " +
+                detalle.capitulos.size + " caps (" +
+                (System.currentTimeMillis() - t0) + " ms)" +
+                (if (detalle.capitulosIncompletos) " [incompletos]" else "")
         )
         return detalle
+    }
+
+    /** Cuerpo del primer <article class="...card...">: la
+     *  portada de la ficha (figure > img, evidencia keiyoushi
+     *  226). Orden de atributos irrelevante. */
+    private fun bloqueArticleCard(html: String): String? {
+        var idx = 0
+        val apertura = Regex("<article\\b[^>]*>")
+        while (true) {
+            val m = apertura.find(html, idx) ?: return null
+            if (HtmlIkigai.tieneClase(m.value, "card")) {
+                val fin = html.indexOf("</article>", m.range.last + 1)
+                return if (fin > 0) html.substring(m.range.last + 1, fin)
+                else html.substring(m.range.last + 1)
+            }
+            idx = m.range.last + 1
+        }
+    }
+
+    /** Primer <p> dentro del primer bloque con la clase dada
+     *  (la sinopsis vive en .card-body > p, NO pegada a la
+     *  apertura: el titulo viene antes en el mismo card-body). */
+    private fun primerParrafoDeClase(html: String, clase: String): String {
+        var idx = 0
+        val apertura = Regex("<(div|article)\\b[^>]*>")
+        while (true) {
+            val m = apertura.find(html, idx) ?: break
+            if (HtmlIkigai.tieneClase(m.value, clase)) {
+                val limite = minOf(m.range.last + 1 + 6000, html.length)
+                val bloque = html.substring(m.range.last + 1, limite)
+                return Regex("<p\\b[^>]*>(.*?)</p>", DOT_MATCHES_ALL)
+                    .find(bloque)?.groupValues?.get(1)
+                    ?.let { HtmlIkigai.limpiar(it) } ?: ""
+            }
+            idx = m.range.last + 1
+        }
+        return ""
     }
 
     /** Capitulos: section.card > ul.grid a.card en la propia
@@ -275,55 +344,55 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
      *  paginas: v1 entrega la primera y declara incompletos. */
     private fun extraerCapitulos(html: String): Pair<List<Capitulo>, Boolean> {
         val res = mutableListOf<Capitulo>()
-        Regex("section[^>]*class=\"[^\"]*card[^\"]*\"[^>]*>(.*?)</section>", DOT_MATCHES_ALL)
-            .findAll(html).forEach { s ->
-                val cuerpo = s.groupValues[1]
-                if (!cuerpo.contains("capitulo") && !cuerpo.contains("series/")) {
-                    return@forEach
-                }
-                Regex("<a[^>]*class=\"[^\"]*card[^\"]*\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>", DOT_MATCHES_ALL)
-                    .findAll(cuerpo).forEach { m ->
-                        val href = m.groupValues[1].trim()
-                        val titulo = Regex("card-title[^>]*>\\s*([^<]{2,120})<")
-                            .find(m.groupValues[2])?.groupValues?.get(1)?.trim()
-                            ?: return@forEach
-                        val fecha = Regex("datetime=\"([^\"]+)\"")
-                            .find(m.groupValues[2])?.groupValues?.get(1)
-                            ?.let { fechaIkigai(it) }
-                        val numero = titulo.removePrefix("Capítulo").removePrefix("Capitulo")
-                            .trim().ifBlank { titulo }
-                        val enlace = if (href.startsWith("http")) {
-                            href.substringAfter(BASE.trimEnd('/'))
-                        } else href
-                        res.add(Capitulo(numero, titulo, fecha, enlace))
-                    }
+        var idx = 0
+        val apertura = Regex("<section\\b[^>]*>")
+        while (true) {
+            val m = apertura.find(html, idx) ?: break
+            val fin = html.indexOf("</section>", m.range.last + 1)
+            val cuerpo =
+                if (fin > 0) html.substring(m.range.last + 1, fin)
+                else html.substring(m.range.last + 1)
+            idx = if (fin > 0) fin + 10 else m.range.last + 1
+            if (!HtmlIkigai.tieneClase(m.value, "card")) continue
+            if (!cuerpo.contains("capitulo") && !cuerpo.contains("series/")) {
+                continue
             }
-        val incompletos = Regex("nav[^>]*aria-label=\"pagination\"").containsMatchIn(html)
+            HtmlIkigai.tarjetasA(cuerpo, "card").forEach { (tag, ccuerpo) ->
+                val href = HtmlIkigai.atributo(tag, "href")?.trim()
+                    ?: return@forEach
+                val titulo = HtmlIkigai.textoDeClase(ccuerpo, "card-title")
+                    ?: return@forEach
+                val fecha = Regex("datetime=\"([^\"]+)\"")
+                    .find(ccuerpo)?.groupValues?.get(1)
+                    ?.let { fechaIkigai(it) }
+                val numero = titulo.removePrefix("Capítulo")
+                    .removePrefix("Capitulo").trim().ifBlank { titulo }
+                res.add(
+                    Capitulo(numero, titulo, fecha, HtmlIkigai.rutaDe(href))
+                )
+            }
+        }
+        val incompletos =
+            Regex("nav[^>]*aria-label=\"pagination\"").containsMatchIn(html)
         return res to incompletos
     }
 
     /** datetime="Wed Oct 21 2026 12:00:00 GMT+0000 (...)" (el
      *  formato qwik del sitio, evidencia keiyoushi). */
     private fun fechaIkigai(crudo: String): String? {
-        val m = Regex("([A-Z][a-z]{2}) ([A-Z][a-z]{2}) (\\d{2}) (\\d{4})")
+        val m = Regex("([A-Z][a-z]{2} ([A-Z][a-z]{2}) (\\d{2}) (\\d{4}))")
             .find(crudo) ?: return null
         return runCatching {
             val f = SimpleDateFormat("EEE MMM dd yyyy", Locale.US)
             SimpleDateFormat("dd/MM/yyyy", Locale.US)
-                .format(f.parse(m.value))
+                .format(f.parse(m.groupValues[1]))
         }.getOrNull()
     }
 
-    private fun limpiar(html: String): String =
-        html.replace(Regex("<[^>]+>"), " ")
-            .replace("&amp;", "&").replace("&quot;", "\"")
-            .replace("&#39;", "'").replace("&nbsp;", " ")
-            .replace(Regex("\\s+"), " ").trim()
-
     // -------------------------------------------------------------- lector
 
-    /** La pagina del capitulo: <section> con <img> dentro de
-     *  <div> (orden del DOM = orden de lectura). */
+    /** La pagina del capitulo: <section div > img> en orden
+     *  del DOM = orden de lectura (evidencia keiyoushi 291). */
     override suspend fun cargarPaginasCapitulo(
         detalle: ObraDetalle,
         capitulo: Capitulo

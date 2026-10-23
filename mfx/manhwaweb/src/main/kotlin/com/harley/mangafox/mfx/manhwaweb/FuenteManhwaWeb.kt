@@ -248,9 +248,12 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
         val slug = obra.enlace.removePrefix("/manhwa/see/")
         if (slug.isEmpty()) return null
         val t0 = System.currentTimeMillis()
-        val crudo = web.getHtml(
-            "/manhwa/see/" + URLEncoder.encode(slug, "UTF-8")
-        )
+        // FIX (log dueno 23-oct 05:16): URLEncoder.encode sobre
+        // TODO el slug convertia el slash legitimo ('manga/<id>')
+        // en %2F => el sitio buscaba un segmento unico inexistente
+        // y la ficha moria en 404 SIEMPRE ('ficha sin JSON').
+        // El slug viene del PROPIO JSON del sitio: se usa tal cual.
+        val crudo = web.getHtml("/manhwa/see/" + slug)
         if (crudo == null) {
             MangaFoxLog.w(ETIQUETA, "ficha sin JSON: " + obra.enlace)
             return null

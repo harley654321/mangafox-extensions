@@ -6,7 +6,10 @@ La APK de MangaFox es un **kernel estable**: no contiene fuentes. Cada fuente es
 un **plugin `.mfx`** compilado (ZIP con bytecode Kotlin) y **firmado con ECDSA**;
 la APK lo verifica (firma + SHA-256) antes de activarlo. Las extensiones de datos
 del sistema antiguo fueron retiradas por completo: este repo vive en el sistema
-`.mfx` con las extensiones firmadas v1 (**mhscans** y **jeazscans**).
+`.mfx` firmadas: **mhscans**, **jeazscans**, **olympusscanlation**,
+**mangacrab**, **manhwaweb** (contrato v1) e **ikigaimangas**
+(primera extensión del contrato **v2**: filtros tipados, búsqueda
+por orden, cabeceras de imagen propias y puente al Motor QuickJS).
 
 ## Enlace único de importación
 
@@ -43,8 +46,9 @@ separada: `:mfx-<id>:construirMfx`.
 ### Agregar una extensión nueva (cero edición de CI)
 
 1. Carpeta `mfx/<id>/`: `build.gradle.kts` (copia del de una extensión
-   viva), `manifest.json` (`id`, `version: 1`, `apiVersion: 1`,
-   `pluginClassName`) y `src/` (Fuente + Plugin).
+   viva), `manifest.json` (`id`, `version: 1`, `apiVersion: 1` **o** `2`,
+   `pluginClassName`) y `src/` (Fuente + Plugin). El contrato v2
+   (FuenteMfx2) se describe en CONTRATO-EXTENSIONES.md.
 2. Entrada en `index.json` con `"urlMfx": ""`, `"fileHashMfx": ""`,
    `"firmaMfx": ""`: el CI los rellena al publicar.
 3. Push a main. El CI la descubre, compila, firma, auto-verifica y

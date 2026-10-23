@@ -1,123 +1,113 @@
-# CONTRATO DE EXTENSIONES MANGAFOX (v1)
+# CONTRATO DE EXTENSIONES MANGAFOX (.mfx, api v1 + v2)
 
-La APK es un **organismo congelado**: una vez finalizada, no se toca.
-Toda extensión nueva es **100% datos** en este repo y la APK congelada
-la hace funcionar por sí sola, como un camaleón. Este documento es el
-contrato que toda extensión debe cumplir para funcionar PERFECTA.
+La APK es un **kernel estable**: no contiene fuentes ni sabe de
+sitios. Cada fuente es un **plugin `.mfx`** (ZIP con bytecode
+Kotlin) firmado con **ECDSA P-256**; la APK verifica firma +
+SHA-256 antes de activarlo y lo rechaza si el `apiVersion` del
+manifest no habla un contrato que el kernel conozca (rechazo
+explícito con log, jamás `NoSuchMethodError` silencioso).
 
-Una extensión que no cumpla este contrato es un cuerpo extraño:
-no funciona NI debe funcionar (las extensiones de Aniyomi/Mihon/u
-otras APKs no sirven aquí; el formato es propio y exclusivo).
+## Versiones del contrato (coexisten)
 
-## Reglas de oro
+| apiVersion | Superficie                | Estado      |
+|------------|---------------------------|-------------|
+| 1          | `FuenteMfx`               | CONGELADA   |
+| 2          | `FuenteMfx2` (hereda v1)  | ACTIVA      |
 
-1. Solo DATOS, cero diseño, cero código: toda la experiencia
-   corre dentro de la APK.
-2. La extensión DESCRIBE; la APK INTERPRETA. El manifest declara
-   la realidad de la fuente; la APK habla el idioma del contrato.
-3. Cortesía con la fuente SIEMPRE: rateLimits obligatorios y
-   honestos. Una extensión que martillea un sitio se degrada a
-   status "broken" en el índice.
-4. contentRating: "safe" por defecto. Fuentes con material adulto
-   lo declaran ("adult") y el manifest debe traer el filtro que
-   excluya adultos de las vistas generales (ej. ManhwaWeb:
-   `erotico=no` server-side).
-5. Todo cambio de manifest sube `version` (+1). El índice manda.
+El kernel carga v1 y v2 en classloaders independientes. Una
+fuente v2 es una v1 completa más tres capacidades.
+
+## v1: FuenteMfx (congelada)
+
+- `FuenteMfx : TemaFuente` + `val id`. La fuente implementa
+  home (recientes/populares/ranking/secciones), directorio y
+  géneros, búsqueda, ficha y lector de páginas.
+- `BasePluginMfx.activar(contexto)` es el punto de entrada que
+  el manifest nombra en `pluginClassName`.
+- `ContextoMfx` regala `clienteWeb(baseUrl, ritmoMs,
+  recoveryUrl)` (OkHttp con cortesía por host, cookies
+  persistentes, interceptor Cloudflare y escotilla WebView del
+  kernel) y `log()` (ley de registro total).
+
+## v2: FuenteMfx2 (Modulo D del kernel)
+
+Todo lo de v1, más:
+
+1. `filtros(): List<Filtro>` — filtros tipados que la UI
+   genérica pinta: `Filtro.Texto`, `Seleccion`, `Casilla`,
+   `TriEstado` (incluido/excluido/ignorado) y `Orden`.
+2. `buscar(filtros, pagina)` — búsqueda con filtros (el modelo
+   Mihon: la fuente configurable sin tocar la UI).
+3. `cabecerasImagen()` + `hostImagenes()` — la fuente ES dueña
+   de las cabeceras HTTP de sus imágenes (lección Ikigai: sin
+   `Sec-Fetch`/`Referer` el CDN responde 403/404 disfrazado).
+   El cargador de imágenes del kernel las aplica por host.
+4. `ContextoMfx2.evaluarJs(etiqueta, codigo)` — puente al Motor
+   QuickJS del kernel (Módulo C, hilo único real): tokens de
+   sitios Qwik, parseos protegidos, decodificadores. Los
+   objetos se devuelven con `JSON.stringify` dentro del script.
+
+**Recomendación viva**: todo plugin v2 debe disparar un canario
+JS al activar (ej. `evaluarJs("mi-canario", "6 * 7")`) y logar
+el resultado: prueba el circuito plugin→PuenteJs→MotorJs en el
+arranque, en producción (patrón ikigaimangas).
 
 ## Estructura del repo
 
 ```
-index.json                      <- catálogo único (apiVersion 1)
-extensions/<id>/manifest.json   <- la extensión misma
+index.json                 <- catálogo único (una entrada por fuente)
+mfx/<id>/                  <- código fuente Kotlin del plugin
+  ├─ manifest.json         <- id, name, version, apiVersion, pluginClassName
+  ├─ build.gradle.kts      <- módulo del plugin
+  └─ src/main/kotlin/.../  <- Fuente*.kt + Plugin*.kt
+api/                       <- superficie pública congelada (vendored de la APK)
+firmas/                    <- llave pública PEM (la privada SOLO es secret CI)
+builds (rama)              <- artefactos .mfx publicados
 ```
 
 ## index.json: campos por extensión
 
-| Campo     | Regla                                              |
-|-----------|----------------------------------------------------|
-| `id`      | slug único, minúsculas, jamás cambia               |
-| `name`    | nombre visible                                     |
-| `lang`    | idioma (es, en, ...)                               |
-| `version` | entero, +1 en cada cambio                          |
-| `apiVersion` | debe calzar con la APK (hoy: 1)                 |
-| `status`  | "broken" | "alpha" | "beta" | "stable"            |
-| `manifest`| ruta al manifest.json de la extensión             |
-| `icon`    | URL del icono (webp/jpg/png, NO favicon .ico)      |
-| `baseUrl` | dominio público de la fuente                       |
-| `theme`   | tema de parser que habla (ver abajo)               |
-| `apiUrl`  | SOLO fuentes mixtas: backend JSON propio           |
-| `rateLimit` | OPCIONAL: `{requests, seconds}` cortesía del    |
-|           | baseUrl (la APK la aplica a paginas Y portadas      |
-|           | del mismo host). Solo con evidencia (keiyoushi      |
-|           | la declara para la fuente). Sin campo = default.    |
+Declarados a mano: `id`, `name`, `lang`, `version`,
+`apiVersion`, `status` ("broken|alpha|beta|stable"),
+`description`, `manifest`, `icon`, `baseUrl`, `theme`,
+`rateLimit`, `recoveryUrl`, y los cuatro de publicación
+**vacíos** (`urlMfx`, `fileHashMfx`, `firmaMfx`, `versionMfx`):
+el CI los rellena al publicar.
 
-## manifest.json: campos
+## manifest.json
 
 ```json
 {
-  "id": "...", "name": "...", "lang": "es",
-  "version": 1, "apiVersion": 1,
-  "contentRating": "safe",
-  "status": "beta",
-  "network": {
-    "baseUrl": "https://...",
-    "domainRecoveryUrl": "https://...",   // respaldo si el dominio muere
-    "rateLimits": [ { "host": "main", "requests": 1, "seconds": 3 } ]
-  },
-  "content": { "seriesType": "comic" },
-  "theme": "..."
+  "id": "ejemplo", "name": "Ejemplo",
+  "version": 1, "apiVersion": 2,
+  "pluginClassName": "com.harley.mangafox.mfx.ejemplo.PluginEjemplo"
 }
 ```
 
-Obligatorios: `network.baseUrl`, `network.rateLimits`, `theme`,
-`contentRating`. Los rateLimits se expresan por host (`main`,
-`panel`, `api`); la APK los respeta mecánicamente.
+Todo cambio de código o manifest sube `version` (+1). El int es
+el versionCode de comparación OTA (como Android/Mihon); crece
+sin límite y es la única llave de actualización.
 
-## Temas disponibles (el corazón del contrato)
+## Reglas de oro
 
-La APK trae los TEMAS quemados (parsers genéricos). Una fuente
-nueva que pertenezca a una de estas familias funciona al
-instante declarando su `theme`:
-
-| Tema              | Familia                       | Qué hereda de la APK |
-|-------------------|-------------------------------|----------------------|
-| `madara`          | WordPress Madara (HTML+ajax)  | ajax96 por lote, eco-detección con calibración HTML, prefetch al final |
-| `mangacrab`       | API JSON WordPress propia     | per_page=50, géneros por slug |
-| `manhwaweb`       | API JSON backend Railway      | 30 items/pág, filtro erotico=no, búsqueda server-side |
-| `olympusscanlation` | id dedicado (API propia)   | catálogo local 96, búsqueda 20, géneros API 15 |
-
-Regla de pertenencia: la fuente debe responder EXACTAMENTE como
-su familia (mismos endpoints y estructuras). Si la página es de
-una familia nueva, NO se fuerza: se espera a que el dueño diseñe
-su tema (la APK congelada solo habla los idiomas registrados).
-
-## PENDIENTE (pase final de motor, antes de congelar)
-
-`pageSize` se mudará del código del tema AL MANIFEST, por vista:
-
-```json
-"pageSize": { "directorio": 96, "genero": 15, "busqueda": 20 }
-```
-
-Con esa mudanza, cualquier fuente futura declara sus tamaños
-reales en datos y el motor aplica cortos y regla de fracción con
-el número correcto. Hasta ese pase, los tamaños viven en el tema
-de la APK (medidos y verificados en vivo).
-
-## Lo que la APK garantiza a toda extensión conforme
-
-Paginación por cadena única con ventana deslizante, rate limiter
-por host, reintentos 3x, página-1 corta y regla de fracción (<=
-75% pedido = fin sin confirmar), footer honesto Cargando/Fin,
-caché de sesión por vista, esqueletos 1:1 y registro total en
-logcat con reloj de sesión para autopsias.
+1. La extensión DESCRIBE y CONSULTA; la APK INTERPRETA y
+   PINTA. Cero diseño en el plugin.
+2. Cortesía con el sitio SIEMPRE: todo `clienteWeb` nace con
+   ritmo (rate limit) medido y honesto.
+3. Firma ECDSA obligatoria; sin firma válida no hay relevo.
+4. Kotlin de la fábrica = Kotlin de la APK (2.2.10), jamás
+   mayor (un Kotlin mayor revienta en runtime).
+5. La `api/` cambia solo con este CONTRATO, nunca sola.
+6. Estado honesto: si una capacidad no existe aún (ej. búsqueda
+   por título pendiente de token Qwik), devolver vacío con log
+   explícito, jamás datos inventados.
 
 ## Checklist para una extensión nueva
 
-- [ ] La fuente pertenece a una familia con tema registrado
-- [ ] Dominio estable + domainRecoveryUrl de respaldo
-- [ ] rateLimits reales medidos con cortesía (pedir permiso al dueño si hay duda)
+- [ ] Carpeta `mfx/<id>/` (manifest + build.gradle + src)
+- [ ] `apiVersion`: 1 (solo scraping) o 2 (filtros + JS + cabeceras)
+- [ ] Entrada en `index.json` con los 4 campos de publicación vacíos
 - [ ] Icono webp/jpg/png en vivo (nada de .ico)
-- [ ] contentRating correcto + filtro de adultos si aplica
-- [ ] Sin diseño, sin código, sin binarios: solo el manifest
-- [ ] version=1, status="alpha", subida al índice y probada en la APK congelada
+- [ ] Ritmo/cortesía medido y declarado; recoveryUrl si el dominio es volátil
+- [ ] Si es v2: canario JS al activar + filtros + cabecerasImagen si el CDN las exige
+- [ ] version=1, status="alpha", probada en la APK congelada

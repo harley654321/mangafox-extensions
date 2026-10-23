@@ -78,7 +78,7 @@
             "status": "beta",
             "description": "Ikigai Mangas en espanol: manga, manhwa, manhua y novelas (dominio camuflado con redirect).",
             "manifest": "mfx/ikigaimangas/manifest.json",
-            "icon": "https://www.google.com/s2/favicons?domain=visualikigai.com&sz=128",
+            "icon": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/main/mfx/ikigaimangas/icono.png",
             "baseUrl": "https://visualikigai.com",
             "theme": "ikigai",
             "rateLimit": {

@@ -1,7 +1,7 @@
 {
-  "id": "ikigaimangas",
-  "name": "Ikigai Mangas",
-  "version": 2,
-  "apiVersion": 1,
-  "pluginClassName": "com.harley.mangafox.mfx.ikigaimangas.PluginIkigaiMangas"
+    "id": "ikigaimangas",
+    "name": "Ikigai Mangas",
+    "version": 3,
+    "apiVersion": 2,
+    "pluginClassName": "com.harley.mangafox.mfx.ikigaimangas.PluginIkigaiMangas"
 }

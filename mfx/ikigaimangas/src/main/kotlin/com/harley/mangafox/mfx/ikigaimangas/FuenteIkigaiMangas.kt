@@ -9,6 +9,8 @@ import com.harley.mangafox.logic.directorio.Genero
 import com.harley.mangafox.logic.home.ObraHome
 import com.harley.mangafox.logic.lector.PaginasCapitulo
 import com.harley.mangafox.mfx.api.ContextoMfx
+import com.harley.mangafox.mfx.api.v2.Filtro
+import com.harley.mangafox.mfx.api.v2.FuenteMfx2
 import com.harley.mangafox.mfx.api.FuenteMfx
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
@@ -67,7 +69,7 @@ import kotlin.text.RegexOption.DOT_MATCHES_ALL
  *
  * Rate limit 1 peticion / 2 s (evidencia keiyoushi).
  */
-class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
+class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx2 {
 
     override val id: String = "ikigaimangas"
 
@@ -252,6 +254,74 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
         )
         return res
     }
+
+    // -------------------------------------------- v2: filtros tipados
+
+    /** Filtros v2: la consulta y el ORDEN del listado (valores
+     *  reales del sitio; evidencia Filters.kt Keiyoushi). */
+    override suspend fun filtros(): List<Filtro> = listOf(
+        Filtro.Texto("Titulo"),
+        Filtro.Orden(
+            "Ordenar por",
+            listOf(
+                "Vistas", "Favoritos", "Valoracion",
+                "Actualizacion", "Nombre", "Creado en"
+            )
+        )
+    )
+
+    /** Valor 'ordenar' del sitio por cada opcion del filtro. */
+    private val ordenarPorIndice = listOf(
+        "view_count", "bookmark_count", "rating_count",
+        "last_chapter_date", "name", "created_at"
+    )
+
+    /** Busqueda v2: por ORDEN navega el archivo real del sitio
+     *  (misma forma que POPULARES); por TITULO es honesto: el
+     *  buscador qwik exige el token qfunc que solo existe en JS
+     *  runtime (verificado 23-oct: NO vive en el HTML crudo) —
+     *  queda para la exposicion de la escotilla (v2.1). */
+    override suspend fun buscar(
+        filtros: List<Filtro>,
+        pagina: Int
+    ): List<ObraHome> {
+        val texto = filtros.filterIsInstance<Filtro.Texto>()
+            .firstOrNull()?.valor?.trim().orEmpty()
+        if (texto.isNotEmpty()) {
+            MangaFoxLog.w(
+                ETIQUETA,
+                "busqueda por titulo pendiente de qfunc (escotilla v2.1)"
+            )
+            return emptyList()
+        }
+        val indice = filtros.filterIsInstance<Filtro.Orden>()
+            .firstOrNull()?.indice ?: 0
+        val ordenar = ordenarPorIndice.getOrNull(indice)
+            ?: "view_count"
+        val html = web.getHtml(
+            "/series/?tipos%5B%5D=comic&ordenar=" + ordenar +
+                "&direccion=desc&pagina=" + pagina
+        ) ?: return emptyList()
+        return withContext(Dispatchers.IO) {
+            parsearArchivo(rebanar(html, "archive-heading"))
+        }
+    }
+
+    // ---------------------------------------- v2: politica de imagen
+
+    /** El CDN image2 solo abre a peticiones de navegador real
+     *  (evidencia imageRequest de Keiyoushi; cazado en vivo
+     *  23-oct 02:55: sin Sec-Fetch el CDN responde 403). La
+     *  fuente ES DUENA de su politica de imagen. */
+    override fun cabecerasImagen(): Map<String, String> = mapOf(
+        "Sec-Fetch-Dest" to "image",
+        "Sec-Fetch-Mode" to "no-cors",
+        "Sec-Fetch-Site" to "cross-site",
+        "Referer" to "https://visualikigai.com/"
+    )
+
+    /** Host al que aplica la politica (sufijo). */
+    override fun hostImagenes(): String = "ikigaimangas.cloud"
 
     // ------------------------------------------------------------ busqueda
 

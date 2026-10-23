@@ -103,35 +103,61 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
         return res
     }
 
-    /** /latest/new-manhwa: capitulos recientes con grupo y
-     *  numero (las tarjetas "Nuevos Capitulos" de la home). */
+    /** /latest/new-manhwa (ronda v5, investigacion del dueno
+     *  23-oct 07:47 verificada en vivo contra el API): el
+     *  payload trae TRES secciones que el sitio muestra juntas
+     *  en Ult. Capitulos: manhwas_esp (principal), _manhwas
+     *  (+18) y manhwas_raw (raw). La v4 solo unia 2 y ponia la
+     *  +18 PRIMERO sin orden temporal => el panel abria mostrando
+     *  puro +18 y la seccion principal quedaba al fondo.
+     *  RECIENTES correcto = las 3 unidas, orden por 'create'
+     *  (epoch ms) DESCENDENTE y dedupe por id_manhwa DESPUES de
+     *  ordenar: la entrada mas nueva gana siempre ('Negocios
+     *  Peligrosos' llega con cap 69 de hoy y cap 41 viejo en
+     *  raw; la extension oficial de Keiyoushi se queda con la
+     *  vieja). 103 unicas verificadas en vivo (34+35+35).
+     *  'chapter' es DECIMAL en el API (33.2, 1.1, 73.5): jamas
+     *  truncar. Ventana rodante sin paginacion (page=2 se
+     *  ignora): pagina 2+ = vacio honesto (FIN tras agotar
+     *  la base completa, fix kernel bfdc405). */
     private suspend fun cargarRecientesApi(): List<ObraHome> {
         val crudo = web.getHtml("/latest/new-manhwa") ?: return emptyList()
         return withContext(Dispatchers.IO) {
             val manhwas = runCatching { JSONObject(crudo) }
                 .getOrNull()?.optJSONObject("manhwas") ?: return@withContext emptyList()
-            val vistas = mutableSetOf<String>()
-            val res = mutableListOf<ObraHome>()
-            for (clave in listOf("_manhwas", "manhwas_esp")) {
+            val entradas = mutableListOf<Pair<Long, JSONObject>>()
+            for (clave in listOf("manhwas_esp", "_manhwas", "manhwas_raw")) {
                 val arr = manhwas.optJSONArray(clave) ?: continue
                 for (i in 0 until arr.length()) {
                     val e = arr.optJSONObject(i) ?: continue
-                    val slug = slugLimpio(e.optString("id_rel"))
-                    val titulo = e.optString("name_manhwa").trim()
-                    if (slug.isEmpty() || titulo.isEmpty()) continue
-                    if (!vistas.add(slug)) continue
-                    val cap = e.optInt("chapter", -1)
-                    val etiqueta = if (cap >= 0) "Cap. " + fmtNum(cap) else null
-                    val enlace = "/manhwa/see/" + slug
-                    if (res.none { it.id == enlace }) {
-                        res.add(
-                            ObraHome(
-                                enlace, titulo,
-                                e.optString("img").trim(),
-                                etiqueta, enlace
-                            )
+                    entradas.add(Pair(e.optLong("create", 0L), e))
+                }
+            }
+            entradas.sortWith(compareByDescending { it.first })
+            val vistas = mutableSetOf<String>()
+            val res = mutableListOf<ObraHome>()
+            for ((_, e) in entradas) {
+                val idManhwa = e.optString("id_manhwa").trim()
+                val titulo = e.optString("name_manhwa").trim()
+                if (idManhwa.isEmpty() || titulo.isEmpty()) continue
+                if (!vistas.add(idManhwa)) continue
+                // Detalle via id_rel: es la llave REAL del endpoint
+                // see (verificado en vivo 23-oct: 'nuevacara...
+                // adsa' responde 200 y el id 'limpio' da 404).
+                // id_manhwa queda como llave de dedupe y respaldo.
+                val slug = slugLimpio(e.optString("id_rel"))
+                if (slug.isEmpty()) continue
+                val cap = e.optDouble("chapter", -1.0)
+                val etiqueta = if (cap >= 0) "Cap. " + fmtCap(cap) else null
+                val enlace = "/manhwa/see/" + slug
+                if (res.none { it.id == enlace }) {
+                    res.add(
+                        ObraHome(
+                            enlace, titulo,
+                            e.optString("img").trim(),
+                            etiqueta, enlace
                         )
-                    }
+                    )
                 }
             }
             res
@@ -273,7 +299,23 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
         // prefijo 'manga/' => 404 SIEMPRE. El %2F anterior era
         // sintoma; la causa era el prefijo. slugLimpio lo pela.
         slug = slugLimpio(slug)
-        val crudo = web.getHtml("/manhwa/see/" + slug)
+        var crudo = web.getHtml("/manhwa/see/" + slug)
+        if (crudo == null) {
+            // RESCATE (ronda v5, hallazgo del dueno 23-oct): ~1%
+            // de las entradas de /latest trae id_rel roto de
+            // fabrica (truncado o corrupto) => 404. La biblioteca
+            // SI tiene la llave buena (real_id): busqueda por
+            // titulo EXACTO y un unico reintento. Verificado en
+            // vivo: 'Manual de instrucciones del Reencarnado'
+            // tenia id_rel E id_manhwa rotos y real_id abrio con
+            // 220 caps.
+            val realId = rescatarRealId(obra.titulo)
+            if (realId != null) {
+                MangaFoxLog.d(ETIQUETA, "rescate ficha 404: '" +
+                    obra.titulo + "' -> real_id " + realId)
+                crudo = web.getHtml("/manhwa/see/" + realId)
+            }
+        }
         if (crudo == null) {
             MangaFoxLog.w(ETIQUETA, "ficha sin JSON: " + obra.enlace)
             return null
@@ -407,7 +449,39 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
         )
     }
 
+    /** Rescate de llave para el detalle: busca el titulo en
+     *  /manhwa/library y devuelve el real_id SOLO si el nombre
+     *  coincide exacto (normalizado) => jamas abre la ficha de
+     *  otra obra. */
+    private suspend fun rescatarRealId(titulo: String): String? {
+        if (titulo.isBlank()) return null
+        val ruta = "/manhwa/library?buscar=" +
+            URLEncoder.encode(titulo, "UTF-8") + "&page=0"
+        val crudo = web.getHtml(ruta) ?: return null
+        return withContext(Dispatchers.IO) {
+            val raiz = runCatching { JSONObject(crudo) }.getOrNull()
+                ?: return@withContext null
+            val items = raiz.optJSONArray("data") ?: return@withContext null
+            val busco = titulo.trim().lowercase()
+            for (i in 0 until items.length()) {
+                val e = items.optJSONObject(i) ?: continue
+                val nombre = e.optString("the_real_name")
+                    .ifBlank { e.optString("name_esp") }.trim()
+                if (nombre.lowercase() == busco) {
+                    return@withContext e.optString("real_id").trim()
+                        .ifBlank { null }
+                }
+            }
+            null
+        }
+    }
+
     private fun fmtNum(n: Int): String = n.toString()
+
+    /** Capitulo DECIMAL del API (33.2, 1.1, 73.5): sin ceros de
+     *  cola y sin truncar los decimales reales. */
+    private fun fmtCap(n: Double): String =
+        if (n % 1.0 == 0.0) n.toInt().toString() else n.toString()
 
     companion object {
         const val ETIQUETA = "Mfx.MhwWeb"

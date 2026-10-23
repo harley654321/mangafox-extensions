@@ -42,10 +42,13 @@ import kotlin.text.RegexOption.DOT_MATCHES_ALL
  *   RECIENTES : /?pagina=N -> section[aria-labelledby=
  *               new-chapters-heading] tarjetas a.card con
  *               titulo en .card-body .card-title
- *   POPULARES : /series/?tipos[]=comic&ordenar=view_count&
+ *   POPULARES : /series/?tipos[]=comic&ordenar=bookmark_count&
  *               direccion=desc&pagina=N -> section[aria-
  *               labelledby=archive-heading] tarjetas a.card
- *               con titulo en h3 (NO card-title)
+ *               con titulo en h3 (NO card-title). FAVORITOS, no
+ *               vistas: /clasificacion/ YA es el top por vistas
+ *               (log dueno 23-oct 03:01: ranking y populares
+ *               salian CLAVADOS).
  *   RANKING   : /clasificacion/ (pagina UNICA) -> tarjetas
  *               div.card con enlace en a.btn y titulo en
  *               .card-body .card-title
@@ -95,8 +98,11 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx {
                 }
             }
             Seccion.POPULARES -> {
+                // bookmark_count (favoritos): view_count dejaba
+                // POPULARES identico a RANKING (/clasificacion =
+                // top por vistas). Verificado vivo 23-oct.
                 val html = web.getHtml(
-                    "/series/?tipos%5B%5D=comic&ordenar=view_count" +
+                    "/series/?tipos%5B%5D=comic&ordenar=bookmark_count" +
                         "&direccion=desc&pagina=" + pagina
                 ) ?: return emptyList()
                 withContext(Dispatchers.IO) {

@@ -52,15 +52,21 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
 
     private val web: ClienteWeb = contexto.clienteWeb(BASE, RITMO_MS, RECOVERY)
 
-    /** Slug CANONICO de obra: sin prefijo 'manga/', sin
-     *  barras. EVIDENCIA (23-oct 05:51, verificado con
-     *  navegador REAL en el sitio y con el Dto oficial de la
-     *  extension Keiyoushi ManhwaWeb v1.4.13): el API espera
-     *  /manhwa/see/<slug pelado>; los campos id_rel/link del
-     *  JSON de listas traen 'manga/<slug>' y llamar con el
-     *  prefijo da HTTP 404 ('ficha sin JSON' SIEMPRE). */
-    private fun slugLimpio(crudo: String): String =
-        crudo.trim().trim('/').removePrefix("manga/").trim('/')
+    /** Slug CANONICO de obra: sin prefijos 'manga/' NI
+     *  'manhwa/', sin barras. EVIDENCIA (23-oct 06:16, log
+     *  dueno 22c9e72fd + navegador REAL en el API): el API
+     *  espera /manhwa/see/<slug pelado>; las listas traen DOS
+     *  convenciones — recientes 'id_rel' = 'manga/<slug>' y
+     *  top 'link' = '/manhwa/<slug>' — y llamar con cualquiera
+     *  de los dos prefijos da HTTP 404 ('ficha sin JSON').
+     *  Verificado en vivo: /manhwa/see/glory_hole_1679782381480
+     *  responde la ficha completa. */
+    private fun slugLimpio(crudo: String): String {
+        var s = crudo.trim().trim('/')
+        if (s.startsWith("manga/")) s = s.removePrefix("manga/")
+        if (s.startsWith("manhwa/")) s = s.removePrefix("manhwa/")
+        return s.trim('/')
+    }
 
     // ------------------------------------------------------------ secciones
 

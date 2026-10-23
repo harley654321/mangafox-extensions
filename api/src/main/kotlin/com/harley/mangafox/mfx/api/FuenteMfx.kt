@@ -68,7 +68,11 @@ data class ManifiestoMfx(
  * kernel nunca lo restringe hoy (Cloudstream no aisla clases:
  * decision documentada en DISENO-MFX.md, seccion seguridad).
  */
-class ContextoMfx internal constructor(
+// 'open' desde api.v2 (23-oct): ContextoMfx2 (paquete v2)
+// hereda de aqui. Cambio NO rompiente: ninguna extension v1
+// extiende ContextoMfx, y 'open' no altera ninguna firma
+// (regla de oro: edicion documentada, jamas silenciosa).
+open class ContextoMfx internal constructor(
     val contexto: Context,
     private val registrar: (FuenteMfx, String) -> Unit
 ) {

@@ -21,8 +21,8 @@
             },
             "recoveryUrl": "https://mhscans.com",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mhscans.mfx",
-            "fileHashMfx": "ca20bc342f4e742dadddc6cb17870654afe3e93566eb26eccb160c286be5decd",
-            "firmaMfx": "MEUCIGBV++p8mi3emUu7U1wIR9hTn24wgahYTKu+P0dYz5WYAiEAoPk9X7IeonhJvWq2ZphCbymb1NViF8F9lEHGpb6d8Us=",
+            "fileHashMfx": "e65f3963e8892582e3e58449c3737872d29bd8638798ccfedabd4c0fba0ebdf1",
+            "firmaMfx": "MEYCIQDJFTY9S3Zx02tp2S9hU5l5pTWeeMlTHqmR28cWk4qKeAIhAPTVdvKHy84OYTiUToyTGW4kVx/LyecJzp3lhyDne9Uj",
             "versionMfx": 1
         },
         {
@@ -43,8 +43,8 @@
             },
             "recoveryUrl": "https://jeazscans.com",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/jeazscans.mfx",
-            "fileHashMfx": "3702ff70d5a10e0a73d30b021fdb47255e93c7bb2dcfe2dbf4ed3d0961a9e99e",
-            "firmaMfx": "MEUCICK4uAwgOzzOq1qW0ovK8G4CdCt5u4VnIZzQWH1mmH6NAiEA0y8ZjkrcYSzyyFJZxloY832r9pUbGZJ/P7/zU/L1rlY=",
+            "fileHashMfx": "fe5f63c01135dd6330115141b971eec46c0d99a8ff838b1deb4d86f87a5a67ba",
+            "firmaMfx": "MEYCIQClNmyKHVdglZOQL1gXBs6zbqVCdWgx9DtcmX9VzQfKxAIhAIuGH8YP5R1oz6bYCMZtyVYQgDZsbsX11ieferJCxH6F",
             "versionMfx": 1
         },
         {
@@ -65,8 +65,8 @@
             },
             "recoveryUrl": "https://olympus.pages.dev",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/olympusscanlation.mfx",
-            "fileHashMfx": "40163148e23e7ca72dc0dbb35489d42ff9130ca827e6b564736940880fd6f27b",
-            "firmaMfx": "MEUCIQCCOLy+IZOX49N9uWvrTG4bMOGEdKV0Pi7t1CCM9QuLdwIgBS9rLdgOuFYNNMG/DBax+/LRPv/J1QZ/wkeQy+L4txc=",
+            "fileHashMfx": "dad841f01a5d047e23846bdf8a8551b9260e55b507a12e1ef3cdfcc5bb5ac2dc",
+            "firmaMfx": "MEYCIQCKWhWiLNASpJdpmxK6i/1w8fGEjdGjkKJdA6yNj03KwgIhAMwoBr07U8WfPvnLJZo3Aad9WlYTAZre+vsaCe2oZnj/",
             "versionMfx": 1
         },
         {
@@ -87,8 +87,8 @@
             },
             "recoveryUrl": "https://ikigaimangas.com",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/ikigaimangas.mfx",
-            "fileHashMfx": "3d1af1fca7fe7ce562d25aaefe8e167febcb936a552003b72d8e29e7084e1d34",
-            "firmaMfx": "MEYCIQDT5k3kTymcHo19leB3+c4FQXR5vGICElmo+oX2XQjnwAIhAJJZTe6k7uRqte7II35/zv/jqp8nz/O7V3WFig0uoMA+",
+            "fileHashMfx": "21fec115e698a504aa0012f17594fa386a7916a8f9f30eebb4786d8dbb35dd77",
+            "firmaMfx": "MEUCIQCVh90+ofsuukLMQaN+tkWOy9dyDCLBddC+MJXhD+j62wIgYm/EtCjvIB5jJzNvE4PdeFargDuQtfuSgvFQ9jjSdqA=",
             "versionMfx": 2
         },
         {
@@ -109,8 +109,8 @@
             },
             "recoveryUrl": "https://mangacrab.org",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mangacrab.mfx",
-            "fileHashMfx": "f2f26eab04091298da9bab58119ac6a88c1f2fc73320322b018ff7584ac3c1ae",
-            "firmaMfx": "MEQCIEBaq8KMAYZKmbt5f73bZNZD8nGH1FoCQR/KYNbrliLrAiB2PQDzCQgpuwOkuuLT4m/76q/WR9e+FfEfmk534ogihg==",
+            "fileHashMfx": "a1db33fec07a5f00355c222509276dedc20c4b2192cd9c5099bcbc2171a4da93",
+            "firmaMfx": "MEQCIFSEL4vd5U+IXFH8MXVmjdbW+execFYkUB3OU6dFhxS5AiADxQ4p6bHDauw/9NbGXc45f4ccKQp9Ru9hE4CC+8w+OQ==",
             "versionMfx": 1
         },
         {
@@ -131,8 +131,8 @@
             },
             "recoveryUrl": "https://manhwaweb.com",
             "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/manhwaweb.mfx",
-            "fileHashMfx": "f0401d59c35d55bb993f93b3ee7dee61048e6ab6e45dc0b00ae3f4538fc2a642",
-            "firmaMfx": "MEUCIQCs+kvOrs1utVZ5smRbjKM8hRm1e3RvCTgie5HpnTjq6wIgGQs9q/PiUxghS6Pfo3pvel4YeTolvMNm5/O/154m6YE=",
+            "fileHashMfx": "d60903afd1c9018f7b2584ec3eb2699fad1371ecfe32b0ca5c8b7119df4d215e",
+            "firmaMfx": "MEUCIQCygyvEgAeORp9XkxgyN/2drxpmOIgCiz+6lGEWTO+16AIgDKLMQVpEf8KiTTnP8ljPAAKE7e3oEv2sOIKDjhaqeKk=",
             "versionMfx": 2
         }
     ]

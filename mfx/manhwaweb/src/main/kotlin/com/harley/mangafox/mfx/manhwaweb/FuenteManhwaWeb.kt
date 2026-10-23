@@ -52,6 +52,16 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
 
     private val web: ClienteWeb = contexto.clienteWeb(BASE, RITMO_MS, RECOVERY)
 
+    /** Slug CANONICO de obra: sin prefijo 'manga/', sin
+     *  barras. EVIDENCIA (23-oct 05:51, verificado con
+     *  navegador REAL en el sitio y con el Dto oficial de la
+     *  extension Keiyoushi ManhwaWeb v1.4.13): el API espera
+     *  /manhwa/see/<slug pelado>; los campos id_rel/link del
+     *  JSON de listas traen 'manga/<slug>' y llamar con el
+     *  prefijo da HTTP 404 ('ficha sin JSON' SIEMPRE). */
+    private fun slugLimpio(crudo: String): String =
+        crudo.trim().trim('/').removePrefix("manga/").trim('/')
+
     // ------------------------------------------------------------ secciones
 
     override suspend fun cargarRecientes(): List<ObraHome> =
@@ -100,7 +110,7 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
                 val arr = manhwas.optJSONArray(clave) ?: continue
                 for (i in 0 until arr.length()) {
                     val e = arr.optJSONObject(i) ?: continue
-                    val slug = e.optString("id_rel").trim()
+                    val slug = slugLimpio(e.optString("id_rel"))
                     val titulo = e.optString("name_manhwa").trim()
                     if (slug.isEmpty() || titulo.isEmpty()) continue
                     if (!vistas.add(slug)) continue
@@ -140,8 +150,7 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
             val res = mutableListOf<ObraHome>()
             for (i in 0 until arr.length()) {
                 val e = arr.optJSONObject(i) ?: continue
-                val slug = e.optString("link").trim()
-                    .removePrefix("/manhwa/").trim('/')
+                val slug = slugLimpio(e.optString("link"))
                 val titulo = e.optString("name").trim()
                 if (slug.isEmpty() || titulo.isEmpty()) continue
                 val enlace = "/manhwa/see/" + slug
@@ -224,8 +233,11 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
             val res = mutableListOf<ObraHome>()
             for (i in 0 until items.length()) {
                 val e = items.optJSONObject(i) ?: continue
-                val slug = e.optString("real_id").trim()
-                val titulo = e.optString("name_esp").trim()
+                val slug = slugLimpio(e.optString("real_id"))
+                // Dto oficial: el library devuelve 'the_real_name'
+                // (name_esp es de la FICHA, no del library).
+                val titulo = e.optString("the_real_name")
+                    .ifBlank { e.optString("name_esp") }.trim()
                 if (slug.isEmpty() || titulo.isEmpty()) continue
                 val enlace = "/manhwa/see/" + slug
                 if (res.none { it.id == enlace }) {
@@ -245,14 +257,16 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
     // -------------------------------------------------------------- ficha
 
     override suspend fun cargarDetalle(obra: ObraHome): ObraDetalle? {
-        val slug = obra.enlace.removePrefix("/manhwa/see/")
+        var slug = obra.enlace.removePrefix("/manhwa/see/")
         if (slug.isEmpty()) return null
         val t0 = System.currentTimeMillis()
-        // FIX (log dueno 23-oct 05:16): URLEncoder.encode sobre
-        // TODO el slug convertia el slash legitimo ('manga/<id>')
-        // en %2F => el sitio buscaba un segmento unico inexistente
-        // y la ficha moria en 404 SIEMPRE ('ficha sin JSON').
-        // El slug viene del PROPIO JSON del sitio: se usa tal cual.
+        // FIX DEFINITIVO (23-oct 05:51, evidencia triple: browser
+        // real en el sitio + Dto oficial Keiyoushi ManhwaWeb +
+        // log dueno): el API api.manhwaweb.com SI recibe
+        // /manhwa/see/<slug> pero el slug de las listas trae el
+        // prefijo 'manga/' => 404 SIEMPRE. El %2F anterior era
+        // sintoma; la causa era el prefijo. slugLimpio lo pela.
+        slug = slugLimpio(slug)
         val crudo = web.getHtml("/manhwa/see/" + slug)
         if (crudo == null) {
             MangaFoxLog.w(ETIQUETA, "ficha sin JSON: " + obra.enlace)
@@ -264,10 +278,16 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
             return null
         }
         val generos = mutableListOf<String>()
+        // Dto oficial: _categoris = [{"<id>": "<nombre>"}, ...]
+        // (el NOMBRE viaja dentro; no hay que traducir ids).
         d.optJSONArray("_categoris")?.let { arr ->
             for (i in 0 until arr.length()) {
-                val gid = arr.optInt(i, -1)
-                NOMBRES_GENEROS[gid]?.let { generos.add(it) }
+                val g = arr.optJSONObject(i) ?: continue
+                val claves = g.keys()
+                while (claves.hasNext()) {
+                    val nombre = g.optString(claves.next()).trim()
+                    if (nombre.isNotEmpty()) generos.add(nombre)
+                }
             }
         }
         val capitulos = extraerCapitulos(d.optJSONArray("chapters"))

@@ -39,7 +39,9 @@ internal object CapitulosIkigai {
                     ?: return@forEach
                 val titulo = HtmlIkigai.textoDeClase(ccuerpo, "card-title")
                     ?: return@forEach
-                val fecha = Regex("datetime=\"([^\"]+)\"")
+                // BUG DUENO 24-oct: el qwik escribe dateTime CAMELCASE (no
+                // datetime) -> la fecha jamas aparecia.
+                val fecha = Regex("[dD]ateTime=\"([^\"]+)\"")
                     .find(ccuerpo)?.groupValues?.get(1)
                     ?.let { fechaIkigai(it) }
                 val numero = titulo.removePrefix("Capítulo")

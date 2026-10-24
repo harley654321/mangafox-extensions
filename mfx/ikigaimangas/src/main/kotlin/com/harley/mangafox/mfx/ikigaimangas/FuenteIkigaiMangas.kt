@@ -477,7 +477,7 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx2 {
     private fun extraerPaginas(html: String): List<String> {
         val urls = mutableListOf<String>()
         val patronPagina = Regex("/series/\\d+/\\d+/")
-        Regex("<img[^>]+src="(https?://[^\"]+)"").findAll(html)
+        Regex("<img[^>]+src=\"(https?://[^\"]+)\"").findAll(html)
             .forEach { m ->
                 val src = m.groupValues[1].trim()
                 if (patronPagina.containsMatchIn(src) &&

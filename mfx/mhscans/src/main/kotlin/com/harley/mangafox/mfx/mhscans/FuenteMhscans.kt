@@ -252,10 +252,10 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
         // lista REAL (keiyoushi v14 MangaAjax) vive en POST
         // <obra>/ajax/chapters/ con X-Requested-With. Premium
         // (Taels/pago) se filtra, default keiyoushi.
-        val ajax = web.postTexto(
-            ruta.trimEnd('/') + "/ajax/chapters/", "",
-            "application/x-www-form-urlencoded",
-            mapOf("X-Requested-With" to "XMLHttpRequest")
+        // postForm ya viaja con X-Requested-With (ejecutarPost del
+        // kernel): exactamente lo que exige el endpoint ajax.
+        val ajax = web.postForm(
+            ruta.trimEnd('/') + "/ajax/chapters/", emptyMap()
         ) ?: html
         return withContext(Dispatchers.IO) { extraerFicha(html, ajax, obra) }.also {
             MangaFoxLog.d("Mfx.Mhscans", "ficha '" + obra.titulo + "': " +

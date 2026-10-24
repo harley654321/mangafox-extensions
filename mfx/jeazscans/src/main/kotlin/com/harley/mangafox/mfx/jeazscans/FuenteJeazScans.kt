@@ -353,6 +353,18 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
         )
     }
 
+    /** LOG DUENO 24-oct (0d86eac01): las URLs del lector viven
+     *  en atributos HTML y traen entidades literales (&amp;);
+     *  sin des-escaparlas el token queda roto y el /api
+     *  responde 403. Verificado en vivo: misma sesion + URL
+     *  saneada -> HTTP 200 (3.9 MB). */
+    private fun desescapar(s: String): String = s
+        .replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+
     /** imgs reader-page-image: data-verify (BASE64 invertido) o
      *  data-src/data-sec-src/src; los placeholder data: se
      *  descartan. Orden del DOM = orden de lectura. */
@@ -367,7 +379,7 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
                         Regex(nombre + "\\s*=\\s*\"([^\"]+)\"").find(tag)
                             ?.groupValues?.get(1)?.trim()
                             ?.takeIf { it.isNotEmpty() && !it.startsWith("data:") }
-                    }?.let { resolver(it) }
+                    }?.let { desescapar(it).let(::resolver) }
             if (resuelta != null && !urls.contains(resuelta)) urls.add(resuelta)
         }
         return urls
@@ -380,7 +392,7 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
         val decodificado = runCatching {
             String(java.util.Base64.getDecoder().decode(rellenado))
         }.getOrNull() ?: return null
-        val url = decodificado.reversed().trim()
+        val url = desescapar(decodificado.reversed().trim())
         return if (url.startsWith("http")) url else resolver(url)
     }
 

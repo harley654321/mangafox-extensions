@@ -294,34 +294,46 @@ class FuenteOlympusScanlation(contexto: ContextoMfx) : FuenteMfx {
     }
 
     /** Capitulos por /api/series/<slug>/chapters (40/pag, desc):
-     *  v1 carga la PRIMERA pagina y lo declara honesto
-     *  (capitulosIncompletos=true si meta.total > 40). */
+     *  TODAS las paginas (dueno 24-oct: 141 caps, no 40). */
     private suspend fun cargarCapitulos(
         slug: String
     ): Pair<List<Capitulo>, Boolean> {
-        val crudo = web.getHtml(
-            "/api/series/" + URLEncoder.encode(slug, "UTF-8") +
-                "/chapters?page=1&direction=desc&type=comic"
-        ) ?: return emptyList<Capitulo>() to true
-        val raiz = runCatching { JSONObject(crudo) }.getOrNull()
-            ?: return emptyList<Capitulo>() to true
-        val datos = raiz.optJSONArray("data")
-            ?: return emptyList<Capitulo>() to true
-        val total = raiz.optJSONObject("meta")?.optInt("total", 0) ?: 0
+        // BUG DUENO 24-oct (fb0499fd4): '40 caps [incompletos]'
+        // en TODA ficha: el API pagina (verificado en vivo:
+        // meta.last_page=4, meta.total=141). Se recorren TODAS
+        // las paginas hasta la ultima (cortesia serializa solo).
         val lista = mutableListOf<Capitulo>()
-        for (i in 0 until datos.length()) {
-            val c = datos.optJSONObject(i) ?: continue
-            val numero = c.optString("name").trim()
-            if (numero.isEmpty()) continue
-            lista.add(
-                Capitulo(
-                    numero = numero,
-                    titulo = "Capítulo " + numero,
-                    fecha = fechaIso(c.optString("published_at")),
-                    enlace = "/series/comic-" + slug + "/capitulo/" +
-                        URLEncoder.encode(numero, "UTF-8")
+        var total = 0
+        var pagina = 1
+        while (true) {
+            val crudo = web.getHtml(
+                "/api/series/" + URLEncoder.encode(slug, "UTF-8") +
+                    "/chapters?page=" + pagina + "&direction=desc" +
+                    "&type=comic"
+            ) ?: return lista to true
+            val raiz = runCatching { JSONObject(crudo) }.getOrNull()
+                ?: return lista to true
+            val datos = raiz.optJSONArray("data")
+                ?: return lista to true
+            total = raiz.optJSONObject("meta")?.optInt("total", 0) ?: 0
+            val ultima = raiz.optJSONObject("meta")
+                ?.optInt("last_page", 1) ?: 1
+            for (i in 0 until datos.length()) {
+                val c = datos.optJSONObject(i) ?: continue
+                val numero = c.optString("name").trim()
+                if (numero.isEmpty()) continue
+                lista.add(
+                    Capitulo(
+                        numero = numero,
+                        titulo = "Capítulo " + numero,
+                        fecha = fechaIso(c.optString("published_at")),
+                        enlace = "/series/comic-" + slug + "/capitulo/" +
+                            URLEncoder.encode(numero, "UTF-8")
+                    )
                 )
-            )
+            }
+            if (pagina >= ultima || datos.length() == 0) break
+            pagina++
         }
         return lista to (total > lista.size)
     }

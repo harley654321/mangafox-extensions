@@ -348,7 +348,16 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
             // El endpoint /api/imagen-capitulo responde 403 a
             // peticiones que no declaran aceptar imagenes.
             cabeceras = mapOf(
-                "Accept" to "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+                "Accept" to "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                // LOG DUENO 24-oct (ada073002): las imagenes son
+                // SAME-ORIGIN (viven en el mismo lectorhub.j5z.xyz)
+                // y el /api rechaza Sec-Fetch-Site: cross-site con
+                // 403. Matriz en vivo: cross-site=403, same-origin
+                // =200 (galletas + Accept imagen + Referer daban).
+                // Las cabeceras de la extension van ENCIMA de las
+                // del descargador (kernel: cabeceras.forEach al
+                // final) => con esto no hay que tocar el lector.
+                "Sec-Fetch-Site" to "same-origin"
             )
         )
     }

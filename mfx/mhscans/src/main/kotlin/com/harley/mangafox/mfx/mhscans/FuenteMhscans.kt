@@ -16,20 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * EXTENSION MFX mhscans (piloto del sistema .mfx).
- *
- * Parser AUTOCONTENIDO del CMS Madara para MHScans, portado del
- * TemaMadara de la apk (validado en vivo contra el sitio real
- * durante octubre-2026: sitemap de generos, ajax96 con page
- * 0-based, eco detectado y calibrado, busqueda ajax, ficha
- * completa con capitulos y lector page-break con referer).
- * Vive FUERA de la apk: si el sitio rediseña, se publica un
- * .mfx nuevo desde el repo de extensiones sin tocar la app.
- *
- * Reglas de red del sitio (evidencia keiyoushi + pruebas):
- * rateLimit 1 peticion / 3 s (Cloudflare propio: una rafaga
- * tumba el acceso ~24 h) y aterrizaje de recuperacion
- * https://mhscans.com (anuncia el dominio vigente).
+ * EXTENSION MFX mhscans: parser Madara validado en vivo
+ * (generos, ajax96, busqueda ajax, ficha, lector page-break).
+ * rateLimit 1/3 s (rafaga tumba ~24 h); recovery mhscans.com.
  */
 class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
 
@@ -248,10 +237,9 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
             MangaFoxLog.w("Mfx.Mhscans", "ficha sin HTML: " + ruta)
             return null
         }
-        // LOG DUENO 24-oct: la ficha trae solo un teaser; la
-        // lista REAL (keiyoushi v14 MangaAjax) vive en POST
-        // <obra>/ajax/chapters/ con X-Requested-With. Premium
-        // (Taels/pago) se filtra, default keiyoushi.
+        // LOG 24-oct: la ficha trae solo un teaser; la lista
+        // REAL vive en POST <obra>/ajax/chapters/ (keiyoushi
+        // v14). Premium/Taels se filtra.
         // postForm ya viaja con X-Requested-With (ejecutarPost del
         // kernel): exactamente lo que exige el endpoint ajax.
         val ajax = web.postForm(
@@ -318,6 +306,20 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
         )
     }
 
+    /** "14 de octubre de 2026" -> dd/MM/yyyy (dueno 24-oct). */
+    private fun fechaNormal(crudo: String?): String? {
+        if (crudo.isNullOrBlank()) return null
+        val m = Regex("(\\d{1,2}) de ([a-záéíóú]+) de (\\d{4})").find(crudo) ?: return crudo
+        val mes = mapOf("enero" to 1, "febrero" to 2, "marzo" to 3,
+            "abril" to 4, "mayo" to 5, "junio" to 6, "julio" to 7,
+            "agosto" to 8, "septiembre" to 9, "setiembre" to 9,
+            "octubre" to 10, "noviembre" to 11, "diciembre" to 12
+        )[m.groupValues[2].lowercase()] ?: return crudo
+        return m.groupValues[1] + "/" +
+            (if (mes < 10) "0" + mes else mes.toString()) + "/" +
+            m.groupValues[3]
+    }
+
     private fun extraerCapitulos(
         html: String
     ): Pair<List<Capitulo>, Int> {
@@ -328,25 +330,22 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
             RegexOption.DOT_MATCHES_ALL
         ).findAll(html).forEach { li ->
             // premium = Taels/pago (keiyoushi los quita por defecto)
-            if (li.groupValues[1].contains("premium")) {
-                premium++
-                return@forEach
-            }
+            if (li.groupValues[1].contains("premium")) { premium++; return@forEach }
             val bloque = li.groupValues[2]
             val href = Regex("<a\\s[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
                 RegexOption.DOT_MATCHES_ALL).find(bloque) ?: return@forEach
             val url = href.groupValues[1].trim()
             val etiqueta = texto(href.groupValues[2]) ?: return@forEach
             if (url.isEmpty() || url == "#" || etiqueta.isEmpty()) return@forEach
-            val fecha = texto(
+            val fecha = fechaNormal(texto(
                 Regex("chapter-release-date\">\\s*<i[^>]*>([^<]*)</i>")
                     .find(bloque)?.groupValues?.get(1)
-            )
-            val numero = etiqueta.substringAfterLast(' ')
-                .takeIf { it.isNotEmpty() } ?: etiqueta
+            ))
+            val numero = etiqueta.substringAfterLast(' ').ifBlank { etiqueta }
             lista.add(Capitulo(numero, etiqueta, fecha, url))
         }
-        return lista.asReversed() to premium
+        // ultimo cap SIEMPRE arriba (dueno 24-oct)
+        return lista to premium
     }
 
     // ------------------------------------------------------------ lector

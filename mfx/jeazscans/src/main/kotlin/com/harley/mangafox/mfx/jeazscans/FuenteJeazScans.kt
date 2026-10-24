@@ -300,8 +300,7 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
                 if (numero.isEmpty()) continue
                 val etiqueta = c.optString("title").trim()
                     .ifEmpty { "Capítulo " + numero }
-                val fecha = c.optString("published_at").trim()
-                    .takeIf { it.isNotEmpty() }
+                val fecha = fechaIso(c.optString("published_at"))
                 val enlace = if (slug.isEmpty()) "" else
                     "/leer/" + slug + "/capitulo-" + dosDecimales(numero)
                 lista.add(Capitulo(numero, etiqueta, fecha, enlace))
@@ -403,6 +402,14 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
         }.getOrNull() ?: return null
         val url = desescapar(decodificado.reversed().trim())
         return if (url.startsWith("http")) url else resolver(url)
+    }
+
+    /** published_at ISO -> dd/MM/yyyy (dueno 24-oct: antes se
+     *  mostraba crudo tipo 2026-10-23T13:34:56.000000Z). */
+    private fun fechaIso(iso: String): String? {
+        val m = Regex("(\\d{4})-(\\d{2})-(\\d{2})").find(iso) ?: return null
+        return m.groupValues[3] + "/" + m.groupValues[2] + "/" +
+            m.groupValues[1]
     }
 
     // ------------------------------------------------------------ comunes

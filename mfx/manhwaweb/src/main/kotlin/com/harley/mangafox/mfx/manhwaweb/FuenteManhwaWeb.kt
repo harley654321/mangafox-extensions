@@ -393,7 +393,13 @@ class FuenteManhwaWeb(contexto: ContextoMfx) : FuenteMfx {
                 )
             }
         }
-        return lista
+        // CANON (log e8864799c): el API see/ entrega chapters[]
+        // ASCENDENTE (cap 1 arriba); las demas fuentes ya
+        // pintan descendente. sortedByDescending estable:
+        // decimales ok, no-parseable al fondo, versions juntas.
+        return lista.sortedByDescending {
+            it.numero.toFloatOrNull() ?: -1f
+        }
     }
 
     private fun fechaEpoch(ms: Long): String? {

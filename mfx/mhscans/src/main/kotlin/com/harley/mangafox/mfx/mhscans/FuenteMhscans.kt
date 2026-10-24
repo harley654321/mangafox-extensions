@@ -248,14 +248,25 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
             MangaFoxLog.w("Mfx.Mhscans", "ficha sin HTML: " + ruta)
             return null
         }
-        return withContext(Dispatchers.IO) { extraerFicha(html, obra) }.also {
+        // LOG DUENO 24-oct: la ficha trae solo un teaser; la
+        // lista REAL (keiyoushi v14 MangaAjax) vive en POST
+        // <obra>/ajax/chapters/ con X-Requested-With. Premium
+        // (Taels/pago) se filtra, default keiyoushi.
+        val ajax = web.postTexto(
+            ruta.trimEnd('/') + "/ajax/chapters/", "",
+            "application/x-www-form-urlencoded",
+            mapOf("X-Requested-With" to "XMLHttpRequest")
+        ) ?: html
+        return withContext(Dispatchers.IO) { extraerFicha(html, ajax, obra) }.also {
             MangaFoxLog.d("Mfx.Mhscans", "ficha '" + obra.titulo + "': " +
                 (it?.capitulos?.size ?: 0) + " caps (" +
                 (System.currentTimeMillis() - t0) + " ms)")
         }
     }
 
-    private fun extraerFicha(html: String, obra: ObraHome): ObraDetalle? {
+    private fun extraerFicha(
+        html: String, ajax: String, obra: ObraHome
+    ): ObraDetalle? {
         val titulo = texto(
             Regex(
                 "<div class=\"post-title\"[^>]*>(.{0,600}?)<h[1-4][^>]*>(.*?)</h[1-4]>",
@@ -290,8 +301,11 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
                 clave.contains("release") -> anio = valor.toIntOrNull()
             }
         }
-        val capitulos = extraerCapitulos(html)
-        MangaFoxLog.d("Mfx.Mhscans", "ficha parseada: " + capitulos.size + " caps")
+        val (capitulos, premium) = extraerCapitulos(ajax)
+        MangaFoxLog.d(
+            "Mfx.Mhscans", "ficha parseada: " + capitulos.size +
+                " caps (" + premium + " premium filtrados)"
+        )
         return ObraDetalle(
             id = obra.id,
             titulo = titulo,
@@ -304,13 +318,21 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
         )
     }
 
-    private fun extraerCapitulos(html: String): List<Capitulo> {
+    private fun extraerCapitulos(
+        html: String
+    ): Pair<List<Capitulo>, Int> {
         val lista = mutableListOf<Capitulo>()
+        var premium = 0
         Regex(
-            "<li class=\"wp-manga-chapter[^\"]*\"[^>]*>(.*?)</li>",
+            "<li class=\"(wp-manga-chapter[^\"]*)\"[^>]*>(.*?)</li>",
             RegexOption.DOT_MATCHES_ALL
         ).findAll(html).forEach { li ->
-            val bloque = li.groupValues[1]
+            // premium = Taels/pago (keiyoushi los quita por defecto)
+            if (li.groupValues[1].contains("premium")) {
+                premium++
+                return@forEach
+            }
+            val bloque = li.groupValues[2]
             val href = Regex("<a\\s[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
                 RegexOption.DOT_MATCHES_ALL).find(bloque) ?: return@forEach
             val url = href.groupValues[1].trim()
@@ -324,7 +346,7 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
                 .takeIf { it.isNotEmpty() } ?: etiqueta
             lista.add(Capitulo(numero, etiqueta, fecha, url))
         }
-        return lista.asReversed()
+        return lista.asReversed() to premium
     }
 
     // ------------------------------------------------------------ lector

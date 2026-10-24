@@ -327,6 +327,6 @@ class FuenteMangaCrab(contexto: ContextoMfx) : FuenteMfx {
         const val RECOVERY = "https://mangacrab.org"
         const val RITMO_MS = 2000L
         const val POR_PAGINA = 24
-        const val CAPITULOS_POR_LOTE = 50
+        const val CAPITULOS_POR_LOTE = 5000
     }
 }

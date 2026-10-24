@@ -13,8 +13,6 @@ import com.harley.mangafox.mfx.api.v2.Filtro
 import com.harley.mangafox.mfx.api.v2.FuenteMfx2
 import com.harley.mangafox.mfx.api.FuenteMfx
 import java.net.URLEncoder
-import java.text.SimpleDateFormat
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.text.RegexOption.DOT_MATCHES_ALL
@@ -354,7 +352,7 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx2 {
             return null
         }
         val detalle = withContext(Dispatchers.IO) {
-            val (capitulos, incompletos) = extraerCapitulos(html)
+            val (capsPagina1, hayMas) = CapitulosIkigai.caps(html)
             ObraDetalle(
                 id = obra.enlace,
                 titulo = HtmlIkigai.textoDeClase(main, "card-title")
@@ -365,17 +363,45 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx2 {
                 estado = HtmlIkigai.enlacesConTexto(main, "estados[]=")
                     .firstOrNull(),
                 generos = HtmlIkigai.enlacesConTexto(main, "generos[]="),
-                capitulos = capitulos,
-                capitulosIncompletos = incompletos
+                capitulos = capsPagina1,
+                capitulosIncompletos = hayMas
             )
         }
+        // PAGINACION (log 24-oct): solo entregabamos la pag 1 (24 de 58 caps). Keiyoushi: ?pagina=N.
+        val detalleFinal =
+            if (!detalle.capitulosIncompletos) detalle
+            else {
+                val ultima = withContext(Dispatchers.IO) {
+                    CapitulosIkigai.ultimaPagina(html)
+                }
+                val vistas = detalle.capitulos
+                    .map { it.enlace }.toMutableSet()
+                val extras = mutableListOf<Capitulo>()
+                var fallo = false
+                for (pag in 2..ultima) {
+                    val sep = if (obra.enlace.contains("?")) "&" else "?"
+                    val ph = web.getHtml(obra.enlace + sep + "pagina=" + pag)
+                    if (ph == null) { fallo = true; break }
+                    CapitulosIkigai.caps(ph).first
+                        .filter { vistas.add(it.enlace) }
+                        .forEach { extras.add(it) }
+                }
+                MangaFoxLog.d(ETIQUETA, "paginador: 2.." + ultima +
+                    " extra=" + extras.size +
+                    (if (fallo) " (fallo)" else " ok"))
+                if (extras.isEmpty()) detalle
+                else detalle.copy(
+                    capitulos = detalle.capitulos + extras,
+                    capitulosIncompletos = fallo
+                )
+            }
         MangaFoxLog.d(
-            ETIQUETA, "ficha '" + detalle.titulo + "': " +
-                detalle.capitulos.size + " caps (" +
+            ETIQUETA, "ficha '" + detalleFinal.titulo + "': " +
+                detalleFinal.capitulos.size + " caps (" +
                 (System.currentTimeMillis() - t0) + " ms)" +
-                (if (detalle.capitulosIncompletos) " [incompletos]" else "")
+                (if (detalleFinal.capitulosIncompletos) " [incompletos]" else "")
         )
-        return detalle
+        return detalleFinal
     }
 
     /** Cuerpo del primer <article class="...card...">: la
@@ -418,53 +444,6 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx2 {
     /** Capitulos: section.card > ul.grid a.card en la propia
      *  ficha (pagina 1). Si hay nav de paginacion hay mas
      *  paginas: v1 entrega la primera y declara incompletos. */
-    private fun extraerCapitulos(html: String): Pair<List<Capitulo>, Boolean> {
-        val res = mutableListOf<Capitulo>()
-        var idx = 0
-        val apertura = Regex("<section\\b[^>]*>")
-        while (true) {
-            val m = apertura.find(html, idx) ?: break
-            val fin = html.indexOf("</section>", m.range.last + 1)
-            val cuerpo =
-                if (fin > 0) html.substring(m.range.last + 1, fin)
-                else html.substring(m.range.last + 1)
-            idx = if (fin > 0) fin + 10 else m.range.last + 1
-            if (!HtmlIkigai.tieneClase(m.value, "card")) continue
-            if (!cuerpo.contains("capitulo") && !cuerpo.contains("series/")) {
-                continue
-            }
-            HtmlIkigai.tarjetasA(cuerpo, "card").forEach { (tag, ccuerpo) ->
-                val href = HtmlIkigai.atributo(tag, "href")?.trim()
-                    ?: return@forEach
-                val titulo = HtmlIkigai.textoDeClase(ccuerpo, "card-title")
-                    ?: return@forEach
-                val fecha = Regex("datetime=\"([^\"]+)\"")
-                    .find(ccuerpo)?.groupValues?.get(1)
-                    ?.let { fechaIkigai(it) }
-                val numero = titulo.removePrefix("Capítulo")
-                    .removePrefix("Capitulo").trim().ifBlank { titulo }
-                res.add(
-                    Capitulo(numero, titulo, fecha, HtmlIkigai.rutaDe(href))
-                )
-            }
-        }
-        val incompletos =
-            Regex("nav[^>]*aria-label=\"pagination\"").containsMatchIn(html)
-        return res to incompletos
-    }
-
-    /** datetime="Wed Oct 21 2026 12:00:00 GMT+0000 (...)" (el
-     *  formato qwik del sitio, evidencia keiyoushi). */
-    private fun fechaIkigai(crudo: String): String? {
-        val m = Regex("([A-Z][a-z]{2} ([A-Z][a-z]{2}) (\\d{2}) (\\d{4}))")
-            .find(crudo) ?: return null
-        return runCatching {
-            val f = SimpleDateFormat("EEE MMM dd yyyy", Locale.US)
-            SimpleDateFormat("dd/MM/yyyy", Locale.US)
-                .format(f.parse(m.groupValues[1]))
-        }.getOrNull()
-    }
-
     // -------------------------------------------------------------- lector
 
     /** La pagina del capitulo: <section div > img> en orden
@@ -491,18 +470,19 @@ class FuenteIkigaiMangas(contexto: ContextoMfx) : FuenteMfx2 {
         )
     }
 
+    /** LOG 24-oct: 1 sola pagina por capitulo. El corte por
+     *  </section> anidado descartaba el resto. Patron en vivo:
+     *  paginas = image3.../series/<obra>/<cap>/NN-hash.webp
+     *  (excluye miniaturas y banners). Orden DOM = lectura. */
     private fun extraerPaginas(html: String): List<String> {
         val urls = mutableListOf<String>()
-        val cuerpo = Regex("<section[^>]*>(.*?)</section>", DOT_MATCHES_ALL)
-            .findAll(html).flatMap { it.groupValues }.joinToString(" ")
-        Regex("<div[^>]*>\\s*<img[^>]*src=\"([^\"]+)\"")
-            .findAll(cuerpo).forEach { m ->
+        val patronPagina = Regex("/series/\\d+/\\d+/")
+        Regex("<img[^>]+src="(https?://[^\"]+)"").findAll(html)
+            .forEach { m ->
                 val src = m.groupValues[1].trim()
-                if (src.startsWith("http") && !src.contains("placeholder") &&
+                if (patronPagina.containsMatchIn(src) &&
                     !urls.contains(src)
-                ) {
-                    urls.add(src)
-                }
+                ) urls.add(src)
             }
         return urls
     }

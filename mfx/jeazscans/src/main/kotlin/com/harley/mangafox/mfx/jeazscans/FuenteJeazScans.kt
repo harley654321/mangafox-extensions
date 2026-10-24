@@ -300,7 +300,7 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
                 if (numero.isEmpty()) continue
                 val etiqueta = c.optString("title").trim()
                     .ifEmpty { "Capítulo " + numero }
-                val fecha = fechaIso(c.optString("published_at"))
+                val fecha = fechaJeaz(c.optString("published_at"))
                 val enlace = if (slug.isEmpty()) "" else
                     "/leer/" + slug + "/capitulo-" + dosDecimales(numero)
                 lista.add(Capitulo(numero, etiqueta, fecha, enlace))
@@ -404,12 +404,42 @@ class FuenteJeazScans(contexto: ContextoMfx) : FuenteMfx {
         return if (url.startsWith("http")) url else resolver(url)
     }
 
-    /** published_at ISO -> dd/MM/yyyy (dueno 24-oct: antes se
-     *  mostraba crudo tipo 2026-10-23T13:34:56.000000Z). */
-    private fun fechaIso(iso: String): String? {
-        val m = Regex("(\\d{4})-(\\d{2})-(\\d{2})").find(iso) ?: return null
-        return m.groupValues[3] + "/" + m.groupValues[2] + "/" +
-            m.groupValues[1]
+    /** published_at del API es RELATIVO ("Ayer", "Hace 4
+     *  dias", "Hace 2 meses"...; DUENO 24-oct 05:21: jeaz sin
+     *  fecha porque la v4 buscaba ISO y el API jamas manda
+     *  ISO): se resuelve a dd/MM/yyyy real al pedir la ficha.
+     *  Variantes verificadas en vivo (230 caps): Ayer, Hace N
+     *  horas/dias/semanas/meses, Hace un/una X. Mes=30 dias
+     *  (granularidad del propio sitio). */
+    private fun fechaJeaz(crudo: String): String? {
+        val t = crudo.trim()
+        if (t.isEmpty()) return null
+        val m = Regex(
+            "hace (un|una|[0-9]+) (hora|horas?|días?|" +
+                "semanas?|meses?)",
+            RegexOption.IGNORE_CASE
+        ).find(t)
+        val dias = when {
+            t.equals("Ayer", true) -> 1
+            m == null -> return null
+            else -> {
+                val n = m.groupValues[1].toIntOrNull()
+                    ?: if (m.groupValues[1].lowercase() in
+                        listOf("un", "una")) 1 else return null
+                val unidad = m.groupValues[2].lowercase()
+                when {
+                    unidad.startsWith("hora") -> 0
+                    unidad.startsWith("d") -> n
+                    unidad.startsWith("semana") -> n * 7
+                    else -> n * 30
+                }
+            }
+        }
+        val cal = java.util.Calendar.getInstance()
+        cal.add(java.util.Calendar.DAY_OF_MONTH, -dias)
+        return java.text.SimpleDateFormat(
+            "dd/MM/yyyy", java.util.Locale.US
+        ).format(cal.time)
     }
 
     // ------------------------------------------------------------ comunes

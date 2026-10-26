@@ -1,0 +1,7 @@
+{
+    "id": "mantrazscan",
+    "name": "Mantraz Scan",
+    "version": 1,
+    "apiVersion": 2,
+    "pluginClassName": "com.harley.mangafox.mfx.mantrazscan.PluginMantrazScan"
+}

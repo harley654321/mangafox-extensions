@@ -378,7 +378,7 @@ class FuenteMantrazScan(contexto: ContextoMfx) : FuenteMfx2 {
         // y el kernel ofrece reintentar; jamas caps truncados
         // en silencio.
         val capsDeclarados = Regex(
-            "series-stat-val\\">(\\d+)</div>" +
+            "series-stat-val\\\">(\\d+)</div>" +
                 "<div class=\"series-stat-lbl\">Capítulos"
         ).find(html)?.groupValues?.get(1)?.toIntOrNull() ?: 0
         val incompletos =

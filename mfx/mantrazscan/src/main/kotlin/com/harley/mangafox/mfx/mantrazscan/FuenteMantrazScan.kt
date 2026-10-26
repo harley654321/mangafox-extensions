@@ -345,8 +345,11 @@ class FuenteMantrazScan(contexto: ContextoMfx) : FuenteMfx2 {
         ).find(html)?.groupValues?.get(1)?.let { limpiar(it) }
             ?.takeIf { it.length >= 10 } ?: ""
 
-        // TODOS los capitulos viven en la misma pagina (verificado
-        // 26-oct: 113/113 a.ch-row sin paginacion) = sin incompletos.
+        // TODOS los capitulos viven en la misma pagina: el boton
+        // "Ver todos" del sitio solo EXPANDE el mismo DOM (veri-
+        // ficado en navegador real 26-oct: stream 114/114 y
+        // renacer 220/220, caps numerados 279-498 porque el scan
+        // solo tiene esos; los comentarios del sitio lo confirman).
         val fechas = fechasFlight(html)
         // El tag completo se captura y el href se extrae aparte:
         // orden de atributos libre (leccion viva de ikigai: el
@@ -368,6 +371,26 @@ class FuenteMantrazScan(contexto: ContextoMfx) : FuenteMfx2 {
             .sortedByDescending { it.numero.toFloatOrNull() ?: -1f }
             .toList()
 
+        // Defensa honesta (leccion viva de ikigai): el contador
+        // "Capitulos" de la propia ficha vs los caps parseados.
+        // Verificado en vivo: renacer 220/220 y stream 114/114.
+        // Si el DOM trajera menos, la ficha se marca incompleta
+        // y el kernel ofrece reintentar; jamas caps truncados
+        // en silencio.
+        val capsDeclarados = Regex(
+            "series-stat-val\\">(\\d+)</div>" +
+                "<div class=\"series-stat-lbl\">Capítulos"
+        ).find(html)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val incompletos =
+            capsDeclarados > 0 && capitulos.size < capsDeclarados
+        if (incompletos) {
+            MangaFoxLog.w(
+                ETIQUETA,
+                "ficha incompleta: " + capitulos.size + " caps " +
+                    "parseados de " + capsDeclarados + " declarados"
+            )
+        }
+
         return ObraDetalle(
             id = obra.id,
             titulo = titulo,
@@ -377,7 +400,7 @@ class FuenteMantrazScan(contexto: ContextoMfx) : FuenteMfx2 {
             nota = nota,
             generos = generos,
             capitulos = capitulos,
-            capitulosIncompletos = false
+            capitulosIncompletos = incompletos
         )
     }
 

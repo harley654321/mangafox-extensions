@@ -1,161 +1,161 @@
 {
- "name": "Repo de extensiones MangaFox",
- "apiVersion": 1,
- "description": "Fabrica v1 de extensiones .mfx (firmadas ECDSA P-256) para la app MangaFox. Cada CI re-compila, re-firma y publica index.json + builds/.",
- "extensions": [
-  {
-   "id": "mhscans",
-   "name": "MHScans",
-   "lang": "es",
-   "version": 1,
-   "apiVersion": 1,
-   "status": "beta",
-   "description": "Scanlation en espanol: manga, manhwa y manhua.",
-   "manifest": "mfx/mhscans/manifest.json",
-   "icon": "https://www.google.com/s2/favicons?domain=mhscans.com&sz=128",
-   "baseUrl": "https://mhscans.com",
-   "theme": "madara",
-   "rateLimit": {
-    "requests": 1,
-    "seconds": 3
-   },
-   "recoveryUrl": "https://mhscans.com",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mhscans.mfx",
-   "fileHashMfx": "0459fe112fb678a4a5b4c13021a712d2053dc54b226e3f0eace702e987d7f6dd",
-   "firmaMfx": "MEUCIQCqVWN6F/RNOTNWk0PrmTLtjDwp5lSNFw2DHPr/J1usUAIgdChuvVAtvg+LORygvzIEqFaT5FST4y3rmSB+ZKlAJa4=",
-   "versionMfx": 3
-  },
-  {
-   "id": "jeazscans",
-   "name": "Jeaz Scans",
-   "lang": "es",
-   "version": 1,
-   "apiVersion": 1,
-   "status": "beta",
-   "description": "Jeaz Scans en espanol: manga, manhwa y manhua (LectorHub).",
-   "manifest": "mfx/jeazscans/manifest.json",
-   "icon": "https://www.google.com/s2/favicons?domain=lectorhub.j5z.xyz&sz=128",
-   "baseUrl": "https://lectorhub.j5z.xyz",
-   "theme": "jeaz",
-   "rateLimit": {
-    "requests": 2,
-    "seconds": 1
-   },
-   "recoveryUrl": "https://jeazscans.com",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/jeazscans.mfx",
-   "fileHashMfx": "a10f36d1e7ec5bd1eb2a2c8a7df62d28631730054a3d35d49772a9b318e92831",
-   "firmaMfx": "MEUCIGYfChjXXqnxyygsK6awpna/8xITEIiqAuApHAJwbzPdAiEA2AAzOUqRd1NB5+joA22KgAUmqUatEPReDkP91tn5tyQ=",
-   "versionMfx": 5
-  },
-  {
-   "id": "olympusscanlation",
-   "name": "Olympus Scanlation",
-   "lang": "es",
-   "version": 1,
-   "apiVersion": 1,
-   "status": "beta",
-   "description": "Olympus Scanlation en espanol: manhwa y manhua con API propia (885 comics).",
-   "manifest": "mfx/olympusscanlation/manifest.json",
-   "icon": "https://www.google.com/s2/favicons?domain=olympusxyz.com&sz=128",
-   "baseUrl": "https://olympusxyz.com",
-   "theme": "olympus",
-   "rateLimit": {
-    "requests": 1,
-    "seconds": 1
-   },
-   "recoveryUrl": "https://olympus.pages.dev",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/olympusscanlation.mfx",
-   "fileHashMfx": "5096743f4561d3dde64e1816b7d87ddcabba128d806b3c892d3d16b8a95485e5",
-   "firmaMfx": "MEYCIQDFGMPxLVQcvz2ODAXwIqZn70iFwpNdB74bB5WQxyoa0wIhAJy1zd9b3XlTb3z9L8uroESE80i0nXbZgIf/t6vJPRhE",
-   "versionMfx": 2
-  },
-  {
-   "id": "ikigaimangas",
-   "name": "Ikigai Mangas",
-   "lang": "es",
-   "version": 1,
-   "apiVersion": 1,
-   "status": "beta",
-   "description": "Ikigai Mangas en espanol: manga, manhwa, manhua y novelas (dominio camuflado con redirect).",
-   "manifest": "mfx/ikigaimangas/manifest.json",
-   "icon": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/main/mfx/ikigaimangas/icono.png",
-   "baseUrl": "https://visualikigai.com",
-   "theme": "ikigai",
-   "rateLimit": {
-    "requests": 1,
-    "seconds": 2
-   },
-   "recoveryUrl": "https://ikigaimangas.com",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/ikigaimangas.mfx",
-   "fileHashMfx": "7ab3a76a44138dfc883594e932c104b863da0a88712d02aff46138f5cf803122",
-   "firmaMfx": "MEYCIQDkaJk5idiW3F9RirJVspMoAsD4TcKwNsy9WHyj7zr3SQIhANhxVcq/nparI5B8PmaKAF7q2BpWsgEp8Tje1mW9trhp",
-   "versionMfx": 5
-  },
-  {
-   "id": "mangacrab",
-   "name": "MangaCrab",
-   "lang": "es",
-   "version": 1,
-   "apiVersion": 1,
-   "status": "beta",
-   "description": "MangaCrab en espanol: manga y manhua (1162 series, cap VIP protegido honesto).",
-   "manifest": "mfx/mangacrab/manifest.json",
-   "icon": "https://www.google.com/s2/favicons?domain=es.mangacrab.org&sz=128",
-   "baseUrl": "https://es.mangacrab.org",
-   "theme": "mangacrab",
-   "rateLimit": {
-    "requests": 1,
-    "seconds": 2
-   },
-   "recoveryUrl": "https://mangacrab.org",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mangacrab.mfx",
-   "fileHashMfx": "64c4329d7ab7465389def827020cb95eab205dc7188b5bfbdd5772bee44fc43a",
-   "firmaMfx": "MEUCIGBdRCND6y4Kl+ADRZBi/lj0c3OWwT1ISdjj/vtjzfHvAiEAwRb3OgWVW+C3gpaN/zrUKbf/dFqYxqjDhjFLgh08Ows=",
-   "versionMfx": 2
-  },
-  {
-   "id": "manhwaweb",
-   "name": "ManhwaWeb",
-   "lang": "es",
-   "version": 1,
-   "apiVersion": 1,
-   "status": "beta",
-   "description": "ManhwaWeb en espanol: manhwa y manga comunitario (lo mas leido semanal y total).",
-   "manifest": "mfx/manhwaweb/manifest.json",
-   "icon": "https://www.google.com/s2/favicons?domain=manhwaweb.com&sz=128",
-   "baseUrl": "https://api.manhwaweb.com",
-   "theme": "manhwaweb",
-   "rateLimit": {
-    "requests": 1,
-    "seconds": 2
-   },
-   "recoveryUrl": "https://manhwaweb.com",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/manhwaweb.mfx",
-   "fileHashMfx": "91d504d474e671ddb50aaa002ce4cc1c547e84af525f628ca2106e117c511b9c",
-   "firmaMfx": "MEUCIQDS4LoVV29EmqnYhg+Y3pXckB5GSEj4FnYYRiVRRHtVHAIgEPJYRFYnGjpl8mIlepqzmaHC2O+fZbxjzkgi1HqoDOs=",
-   "versionMfx": 6
-  },
-  {
-   "id": "mantrazscan",
-   "name": "Mantraz Scan",
-   "lang": "es",
-   "version": 2,
-   "apiVersion": 2,
-   "status": "alpha",
-   "description": "Mantraz Scan en espanol: manhwa, manga y manhua (sitio Next.js detras de Cloudflare, dominio .lat vigente).",
-   "manifest": "mfx/mantrazscan/manifest.json",
-   "icon": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/main/mfx/mantrazscan/icono.png",
-   "baseUrl": "https://mantrazscanss.lat",
-   "theme": "mantraz",
-   "rateLimit": {
-    "requests": 1,
-    "seconds": 2
-   },
-   "recoveryUrl": "https://mantrazscanss.lat",
-   "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mantrazscan.mfx",
-   "fileHashMfx": "9a16cb8d8a51cb808c5227f71870a22ec7c6686ea28ec5c1929a6164c1d7c915",
-   "firmaMfx": "MEUCIQCew/A223qUswP7uc7mMz4iRbgNNBxlK1I+M5CYVd+UygIgHBIDs39wB8wUAw34pmcsBU/OgP6AUx2zUpRGiENMGNo=",
-   "versionMfx": 1
-  }
- ]
+    "name": "Repo de extensiones MangaFox",
+    "apiVersion": 1,
+    "description": "Fabrica v1 de extensiones .mfx (firmadas ECDSA P-256) para la app MangaFox. Cada CI re-compila, re-firma y publica index.json + builds/.",
+    "extensions": [
+        {
+            "id": "mhscans",
+            "name": "MHScans",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Scanlation en espanol: manga, manhwa y manhua.",
+            "manifest": "mfx/mhscans/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=mhscans.com&sz=128",
+            "baseUrl": "https://mhscans.com",
+            "theme": "madara",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 3
+            },
+            "recoveryUrl": "https://mhscans.com",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mhscans.mfx",
+            "fileHashMfx": "5c7907afc4239672dd26cac8e89f79e4c4892d4522a09ba13d3a51478d7780cf",
+            "firmaMfx": "MEYCIQCUoAmtezRrIcSpIUisJU22aK3Cuu8FnagOfJeOY8ph/AIhAPTLk8ydXby+5Q6bofF8jSvD9R5/mj7GMcr1k7LXmYCo",
+            "versionMfx": 3
+        },
+        {
+            "id": "jeazscans",
+            "name": "Jeaz Scans",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Jeaz Scans en espanol: manga, manhwa y manhua (LectorHub).",
+            "manifest": "mfx/jeazscans/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=lectorhub.j5z.xyz&sz=128",
+            "baseUrl": "https://lectorhub.j5z.xyz",
+            "theme": "jeaz",
+            "rateLimit": {
+                "requests": 2,
+                "seconds": 1
+            },
+            "recoveryUrl": "https://jeazscans.com",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/jeazscans.mfx",
+            "fileHashMfx": "30343a7a25105fb751fd14e8517bd372911e522a426b8b959e08ab6f83f78a73",
+            "firmaMfx": "MEYCIQDZnpVqV9rhtNJCk8QVtCRb7uCbjmRJAugWlhy7Oa5SqAIhANSfkgdKAp+9JnPO3DYJYJQfsJ6Q/t7FSqsdqR9wjhGz",
+            "versionMfx": 5
+        },
+        {
+            "id": "olympusscanlation",
+            "name": "Olympus Scanlation",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Olympus Scanlation en espanol: manhwa y manhua con API propia (885 comics).",
+            "manifest": "mfx/olympusscanlation/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=olympusxyz.com&sz=128",
+            "baseUrl": "https://olympusxyz.com",
+            "theme": "olympus",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 1
+            },
+            "recoveryUrl": "https://olympus.pages.dev",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/olympusscanlation.mfx",
+            "fileHashMfx": "07bc57de858b3aae13ac4af8a99ca00369a65e803f6361607ef05104a1035fd9",
+            "firmaMfx": "MEUCIQDGXn03UEXUOU1TJBFGpExWp50kBojjHWgM7WDih4ZBLwIgM8JD5P1xB3df0BhKAJ8b/MMEM+hNYplRoVHUXGLeCmU=",
+            "versionMfx": 2
+        },
+        {
+            "id": "ikigaimangas",
+            "name": "Ikigai Mangas",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "Ikigai Mangas en espanol: manga, manhwa, manhua y novelas (dominio camuflado con redirect).",
+            "manifest": "mfx/ikigaimangas/manifest.json",
+            "icon": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/main/mfx/ikigaimangas/icono.png",
+            "baseUrl": "https://visualikigai.com",
+            "theme": "ikigai",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://ikigaimangas.com",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/ikigaimangas.mfx",
+            "fileHashMfx": "14282d24fd11bde1e721bf6275b13555a26b3731320b6804f4a8f5a871f23b59",
+            "firmaMfx": "MEYCIQDczJewHY3Gq+3F7hg3BNTNMYs90wHhqUGoQw/VgYYmMQIhAPJXsCHFTaPpusb1pWDhFGdAoiYvm5egjdSlqgeN3F3V",
+            "versionMfx": 5
+        },
+        {
+            "id": "mangacrab",
+            "name": "MangaCrab",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "MangaCrab en espanol: manga y manhua (1162 series, cap VIP protegido honesto).",
+            "manifest": "mfx/mangacrab/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=es.mangacrab.org&sz=128",
+            "baseUrl": "https://es.mangacrab.org",
+            "theme": "mangacrab",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://mangacrab.org",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mangacrab.mfx",
+            "fileHashMfx": "ea8831eae99609d666098107d49e3665aefa12580e434c993998d7c3451304dd",
+            "firmaMfx": "MEQCIB6r1k9tDdhNDHotMAi1K439cNJv3YmzT3G/Qlb01t5RAiAGHG4M0HcXglkpNtHi4kOiVL7lLy5oJa+sYYaPpsawXg==",
+            "versionMfx": 2
+        },
+        {
+            "id": "manhwaweb",
+            "name": "ManhwaWeb",
+            "lang": "es",
+            "version": 1,
+            "apiVersion": 1,
+            "status": "beta",
+            "description": "ManhwaWeb en espanol: manhwa y manga comunitario (lo mas leido semanal y total).",
+            "manifest": "mfx/manhwaweb/manifest.json",
+            "icon": "https://www.google.com/s2/favicons?domain=manhwaweb.com&sz=128",
+            "baseUrl": "https://api.manhwaweb.com",
+            "theme": "manhwaweb",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://manhwaweb.com",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/manhwaweb.mfx",
+            "fileHashMfx": "ff56920a64ef23eb2ce6cfbfb500f30cdb46364dc50b8163164df4162250891c",
+            "firmaMfx": "MEUCIFIbrjtM2GKSJGUbdu61tvhGUS5VAL37l4Byk44vNYERAiEAyk9Ush3G7SsHuiT9KKNAYTv91A/lyMXdIp34i87p4A8=",
+            "versionMfx": 6
+        },
+        {
+            "id": "mantrazscan",
+            "name": "Mantraz Scan",
+            "lang": "es",
+            "version": 2,
+            "apiVersion": 2,
+            "status": "alpha",
+            "description": "Mantraz Scan en espanol: manhwa, manga y manhua (sitio Next.js detras de Cloudflare, dominio .lat vigente).",
+            "manifest": "mfx/mantrazscan/manifest.json",
+            "icon": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/main/mfx/mantrazscan/icono.png",
+            "baseUrl": "https://mantrazscanss.lat",
+            "theme": "mantraz",
+            "rateLimit": {
+                "requests": 1,
+                "seconds": 2
+            },
+            "recoveryUrl": "https://mantrazscanss.lat",
+            "urlMfx": "https://raw.githubusercontent.com/harley654321/mangafox-extensions/builds/mfx/mantrazscan.mfx",
+            "fileHashMfx": "06e1ef5de528a730352393612dfac5b1fd5b5ded4db36ce3a6c4796fdf63b969",
+            "firmaMfx": "MEYCIQCTQzEgEigWpHRz+hsW3nFXplJwS1+iVNYfsRkSBno4FwIhAISNbKefJ4v7zvddldeBTnZmLG/2SLRnjZdL3H6NInfa",
+            "versionMfx": 2
+        }
+    ]
 }

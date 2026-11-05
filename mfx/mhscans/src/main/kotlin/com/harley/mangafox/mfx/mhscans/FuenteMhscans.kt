@@ -107,11 +107,10 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
         return parsear(web.getHtml(rutaListado(generoSlug, paginasCubiertas + pagina - 1)))
     }
 
-    private fun rutaListado(generoSlug: String?, pagina: Int): String = when {
-        generoSlug == null && pagina <= 1 -> "/manga/"
-        generoSlug == null -> "/manga/page/$pagina/"
-        pagina <= 1 -> "/manga-genre/$generoSlug/"
-        else -> "/manga-genre/$generoSlug/page/$pagina/"
+    private fun rutaListado(generoSlug: String?, pagina: Int): String {
+        val p = if (pagina < 1) 1 else pagina
+        val extra = if (generoSlug.isNullOrBlank()) "" else "&genre=" + generoSlug
+        return "/library?page=" + p + extra
     }
 
     /** Lote admin-ajax de 96 obras, page 0-based (validado en vivo
@@ -135,13 +134,10 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
     }
 
     override suspend fun buscar(texto: String, pagina: Int): List<ObraHome> {
-        val q = texto.trim()
-        if (q.isEmpty()) return emptyList()
-        val params = ajaxBase().toMutableMap()
-        params["vars[s]"] = q
-        params["page"] = (pagina - 1).toString()
-        params["vars[paged]"] = pagina.toString()
-        val html = web.postForm("/wp-admin/admin-ajax.php", params) ?: return emptyList()
+        val codificado = java.net.URLEncoder.encode(texto, "UTF-8")
+        val html = web.getHtml(
+            rutaListado(null, pagina) + "&q=" + codificado
+        ) ?: return emptyList()
         return parsear(html)
     }
 
@@ -159,28 +155,28 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
     // ------------------------------------------------------------ home
 
     override suspend fun cargarRecientes(): List<ObraHome> =
-        parsear(web.getHtml("/manga/?m_orderby=latest"))
+        parsear(web.getHtml("/library?page=1&sort=updated"))
 
     override suspend fun cargarPopulares(): List<ObraHome> =
-        parsear(web.getHtml("/manga/?m_orderby=views"))
+        parsear(web.getHtml("/library?page=1&sort=views"))
 
     // RANKING = rating REAL (decision del dueno 21-oct: views era un
     // disfraz de Populares y duplicaba sus paginas al sitio; el sitio
     // soporta m_orderby=rating, lista distinta verificada en vivo).
     override suspend fun cargarRanking(): List<ObraHome> =
-        parsear(web.getHtml("/manga/?m_orderby=rating"))
+        parsear(web.getHtml("/library?page=1&sort=rating"))
 
     override suspend fun cargarSeccion(
         seccion: Seccion,
         pagina: Int
     ): List<ObraHome> {
         val (base, pag) = when (seccion) {
-            Seccion.RECIENTES -> "/manga/?m_orderby=latest" to pagina
-            Seccion.POPULARES -> "/manga/?m_orderby=views" to pagina
-            Seccion.RANKING -> "/manga/?m_orderby=rating" to pagina
+            Seccion.RECIENTES -> "/library?page=1&sort=updated" to pagina
+            Seccion.POPULARES -> "/library?page=1&sort=views" to pagina
+            Seccion.RANKING -> "/library?page=1&sort=rating" to pagina
         }
         val ruta = if (pag <= 1) base
-        else base.replace("/manga/", "/manga/page/" + pag + "/")
+        else base.replace("/library?page=1", "/manga/page/" + pag + "/")
         return parsear(web.getHtml(ruta))
     }
 
@@ -189,22 +185,9 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
     private suspend fun parsear(html: String?): List<ObraHome> =
         withContext(Dispatchers.IO) {
             if (html == null) return@withContext emptyList()
-            val marcaBloque = if (html.contains("page-item-detail")) "page-item-detail"
-                              else "c-tabs-item__content"
-            val obras = MiniHtml.bloques(html, marcaBloque).mapNotNull { bloque ->
-                val (href, titulo) = extraerEnlace(bloque) ?: return@mapNotNull null
-                ObraHome(
-                    id = MiniHtml.slugDe(href),
-                    titulo = titulo.trim(),
-                    portadaUrl = MiniHtml.imagen(bloque) ?: "",
-                    etiqueta = null,
-                    enlace = href
-                )
-            }.filter { obra ->
-                val enSlug = obra.id.lowercase().contains("mhscans")
-                val enTitulo = obra.titulo.lowercase().contains("mhscans")
-                !(enSlug || enTitulo)
-            }.distinctBy { it.id }
+            val obras = HtmlMhscans.lista(html)
+                .filterNot { it.titulo.lowercase().contains("mhscans") }
+                .distinctBy { it.id }
             MangaFoxLog.d("Mfx.Mhscans", "parseados " + obras.size + " items")
             obras
         }
@@ -232,67 +215,75 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
             try { java.net.URI(enlace).path ?: return null }
             catch (e: Exception) { return null }
         } else enlace
-        val t0 = System.currentTimeMillis()
         val html = web.getHtml(ruta) ?: run {
             MangaFoxLog.w("Mfx.Mhscans", "ficha sin HTML: " + ruta)
             return null
         }
-        // LOG 24-oct: la ficha trae solo un teaser; la lista
-        // REAL vive en POST <obra>/ajax/chapters/ (keiyoushi
-        // v14). Premium/Taels se filtra.
-        // postForm ya viaja con X-Requested-With (ejecutarPost del
-        // kernel): exactamente lo que exige el endpoint ajax.
-        val ajax = web.postForm(
-            ruta.trimEnd('/') + "/ajax/chapters/", emptyMap()
-        ) ?: html
-        return withContext(Dispatchers.IO) { extraerFicha(html, ajax, obra) }.also {
+        // TEMA NUEVO (05-nov): los capitulos ya NO salen por
+        // admin-ajax; son una pagina HTML paginada con /leer/.
+        val base = ruta.trimEnd('/')
+        val acumulado = StringBuilder()
+        var paginasLeidas = 0
+        var paginaCap = 1
+        while (paginaCap <= 25) {
+            val trozo = web.getHtml(
+                base + "/chapters?page=" + paginaCap
+            ) ?: break
+            paginasLeidas++
+            if (HtmlMhscans.capitulos(trozo).isEmpty()) break
+            acumulado.append(trozo)
+            if (!trozo.contains("chapters?page=" + (paginaCap + 1))) break
+            paginaCap++
+        }
+        val capsHtml = acumulado.toString()
+        return withContext(Dispatchers.IO) {
+            extraerFicha(html, capsHtml, obra)
+        }.also {
             MangaFoxLog.d("Mfx.Mhscans", "ficha '" + obra.titulo + "': " +
-                (it?.capitulos?.size ?: 0) + " caps (" +
-                (System.currentTimeMillis() - t0) + " ms)")
+                (it?.capitulos?.size ?: 0) + " caps en " +
+                paginasLeidas + " pagina(s) de capitulos")
         }
     }
 
     private fun extraerFicha(
-        html: String, ajax: String, obra: ObraHome
+        html: String, capsHtml: String, obra: ObraHome
     ): ObraDetalle? {
+        // TEMA NUEVO (05-nov): metadatos estandar (og/h1/meta) porque
+        // las clases wp-manga desaparecieron del sitio.
         val titulo = texto(
-            Regex(
-                "<div class=\"post-title\"[^>]*>(.{0,600}?)<h[1-4][^>]*>(.*?)</h[1-4]>",
-                RegexOption.DOT_MATCHES_ALL
-            ).find(html)?.groupValues?.get(2)
-        ) ?: return null
+            Regex("<meta property=\"og:title\" content=\"([^\"]+)\"")
+                .find(html)?.groupValues?.get(1)
+        ) ?: texto(
+            Regex("<h1[^>]*>(.{0,300}?)</h1>", RegexOption.DOT_MATCHES_ALL)
+                .find(html)?.groupValues?.get(1)
+        ) ?: obra.titulo
         val sinopsis = texto(
             Regex(
-                "<div[^>]*class=\"[^\"]*summary__content[^\"]*\"[^>]*>(.*?)</div>",
+                "<meta name=\"description\" content=\"([^\"]{0,4000})\"",
                 RegexOption.DOT_MATCHES_ALL
             ).find(html)?.groupValues?.get(1)
         ).orEmpty()
-        val portada = Regex(
-            "class=\"summary_image\".{0,400}?(?:data-src|src)\\s*=\\s*\"([^\"]+)\"",
-            RegexOption.DOT_MATCHES_ALL
-        ).find(html)?.groupValues?.get(1)?.takeIf { it.isNotBlank() }
-            ?: obra.portadaUrl
-        var estado: String? = null
-        var anio: Int? = null
-        var generos: List<String> = emptyList()
-        Regex(
-            "<div class=\"post-content_item\">\\s*<div class=\"summary-heading\">" +
-                ".{0,120}?<h5>([^<]*)</h5>.*?<div class=\"summary-content\">(.*?)</div>",
-            RegexOption.DOT_MATCHES_ALL
-        ).findAll(html).forEach { m ->
-            val clave = m.groupValues[1].trim().lowercase()
-            val valor = texto(m.groupValues[2]) ?: return@forEach
-            when {
-                clave.contains("genre") -> generos = valor.split(',')
-                    .map { it.trim() }.filter { it.isNotEmpty() }
-                clave.contains("status") -> estado = traducirEstado(valor)
-                clave.contains("release") -> anio = valor.toIntOrNull()
-            }
+        val portadaCruda = Regex(
+            "<meta property=\"og:image\" content=\"([^\"]+)\""
+        ).find(html)?.groupValues?.get(1)
+        val portada = when {
+            portadaCruda.isNullOrBlank() -> obra.portadaUrl
+            portadaCruda.startsWith("http") -> portadaCruda
+            else -> BASE.trimEnd('/') + "/" + portadaCruda.trimStart('/')
         }
-        val (capitulos, premium) = extraerCapitulos(ajax)
+        var estado: String? = null
+        Regex(">(En curso|Finalizado|Activo|Completado|Pausado)<",
+            RegexOption.IGNORE_CASE)
+            .find(html)?.let { estado = traducirEstado(it.groupValues[1]) }
+        val generos = Regex(
+            "href=\"/(?:genero|genre|comics\\?genre=)([a-z0-9-]{2,40})\""
+        ).findAll(html).map { bonito(it.groupValues[1]) }
+            .distinct().take(12).toList()
+        val (capitulos, premium) = extraerCapitulos(capsHtml)
         MangaFoxLog.d(
-            "Mfx.Mhscans", "ficha parseada: " + capitulos.size +
-                " caps (" + premium + " premium filtrados)"
+            "Mfx.Mhscans", "ficha: " + capitulos.size + " caps (" +
+                premium + " premium), generos=" + generos.size +
+                ", sinopsis=" + sinopsis.length + "B"
         )
         return ObraDetalle(
             id = obra.id,
@@ -300,7 +291,6 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
             portadaUrl = portada,
             sinopsis = sinopsis,
             estado = estado,
-            anio = anio,
             generos = generos,
             capitulos = capitulos
         )
@@ -322,31 +312,7 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
 
     private fun extraerCapitulos(
         html: String
-    ): Pair<List<Capitulo>, Int> {
-        val lista = mutableListOf<Capitulo>()
-        var premium = 0
-        Regex(
-            "<li class=\"(wp-manga-chapter[^\"]*)\"[^>]*>(.*?)</li>",
-            RegexOption.DOT_MATCHES_ALL
-        ).findAll(html).forEach { li ->
-            // premium = Taels/pago (keiyoushi los quita por defecto)
-            if (li.groupValues[1].contains("premium")) { premium++; return@forEach }
-            val bloque = li.groupValues[2]
-            val href = Regex("<a\\s[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>",
-                RegexOption.DOT_MATCHES_ALL).find(bloque) ?: return@forEach
-            val url = href.groupValues[1].trim()
-            val etiqueta = texto(href.groupValues[2]) ?: return@forEach
-            if (url.isEmpty() || url == "#" || etiqueta.isEmpty()) return@forEach
-            val fecha = fechaNormal(texto(
-                Regex("chapter-release-date\">\\s*<i[^>]*>([^<]*)</i>")
-                    .find(bloque)?.groupValues?.get(1)
-            ))
-            val numero = etiqueta.substringAfterLast(' ').ifBlank { etiqueta }
-            lista.add(Capitulo(numero, etiqueta, fecha, url))
-        }
-        // ultimo cap SIEMPRE arriba (dueno 24-oct)
-        return lista to premium
-    }
+    ): Pair<List<Capitulo>, Int> = HtmlMhscans.capitulos(html) to 0
 
     // ------------------------------------------------------------ lector
 
@@ -370,23 +336,8 @@ class FuenteMhscans(contexto: ContextoMfx) : FuenteMfx {
         return PaginasCapitulo(urls, referer = BASE.trimEnd('/') + ruta)
     }
 
-    private fun extraerPaginas(html: String): List<String> {
-        val urls = mutableListOf<String>()
-        for (bloque in MiniHtml.bloques(html, "page-break")) {
-            val img = Regex("<img\\s[^>]*>").find(bloque)?.value ?: continue
-            val url = urlDeImagen(img) ?: continue
-            val resuelta = resolver(url)
-            if (!urls.contains(resuelta)) urls.add(resuelta)
-        }
-        if (urls.isNotEmpty()) return urls
-        if (!html.contains("reading-content")) return urls
-        for (img in Regex("<img\\s[^>]*>").findAll(html)) {
-            val url = urlDeImagen(img.value) ?: continue
-            val resuelta = resolver(url)
-            if (!urls.contains(resuelta)) urls.add(resuelta)
-        }
-        return urls
-    }
+    private fun extraerPaginas(html: String): List<String> =
+        HtmlMhscans.paginas(html).map { resolver(it) }.distinct()
 
     private fun urlDeImagen(img: String): String? {
         for (nombre in listOf(
